@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Avatar } from '../common/Avatar';
-import { Button } from '../common/Button';
 
 // =============================================================================
 // Types
@@ -21,7 +20,7 @@ export interface HeaderProps {
   /** Current user info */
   user?: HeaderUser | null;
   /** Called when user menu item is clicked */
-  onUserAction?: (action: 'profile' | 'settings' | 'logout') => void;
+  onUserAction?: (action: 'settings' | 'logout') => void;
   /** Called when mobile menu button is clicked */
   onMobileMenuClick?: () => void;
   /** Whether to show mobile menu button */
@@ -135,14 +134,6 @@ function UserMenu({ user, onAction }: UserMenuProps) {
         <div className="py-1">
           <button
             type="button"
-            onClick={() => onAction?.('profile')}
-            className="w-full px-4 py-2 text-sm text-left text-[#003559] hover:bg-[#b9d6f2]/30 transition-colors"
-            role="menuitem"
-          >
-            Your Profile
-          </button>
-          <button
-            type="button"
             onClick={() => onAction?.('settings')}
             className="w-full px-4 py-2 text-sm text-left text-[#003559] hover:bg-[#b9d6f2]/30 transition-colors"
             role="menuitem"
@@ -246,22 +237,6 @@ export function Header({
       <div className="flex items-center gap-3">
         {/* Custom actions */}
         {actions}
-
-        {/* Notifications button (placeholder) */}
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Notifications"
-          className="relative"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path
-              fillRule="evenodd"
-              d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </Button>
 
         {/* User menu */}
         {user && <UserMenu user={user} onAction={onUserAction} />}

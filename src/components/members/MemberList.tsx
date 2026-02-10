@@ -18,9 +18,7 @@ export interface MemberListProps {
   siteId?: string;
   /** Called when a member is selected */
   onSelect?: (memberId: string) => void;
-  /** Called when add button is clicked */
-  onAdd?: () => void;
-  /** Called when import button is clicked */
+  /** Called when import button is clicked (empty state CTA only) */
   onImport?: () => void;
   /** Additional class names */
   className?: string;
@@ -38,27 +36,6 @@ function SearchIcon() {
         strokeLinejoin="round"
         strokeWidth={2}
         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
       />
     </svg>
   );
@@ -179,14 +156,12 @@ function MemberRow({ member, onSelect }: MemberRowProps) {
  * @example
  * <MemberList
  *   onSelect={(id) => navigate(`/members/${id}`)}
- *   onAdd={() => openAddModal()}
  *   onImport={() => navigate('/members/import')}
  * />
  */
 export function MemberList({
   siteId: initialSiteId,
   onSelect,
-  onAdd,
   onImport,
   className = '',
 }: MemberListProps) {
@@ -302,22 +277,7 @@ export function MemberList({
 
   return (
     <Card className={className} padding="none">
-      <CardHeader
-        actions={
-          <div className="flex items-center gap-2">
-            {onImport && (
-              <Button variant="outline" size="sm" onClick={onImport} leftIcon={<UploadIcon />}>
-                Import
-              </Button>
-            )}
-            {onAdd && (
-              <Button size="sm" onClick={onAdd} leftIcon={<PlusIcon />}>
-                Add Member
-              </Button>
-            )}
-          </div>
-        }
-      >
+      <CardHeader>
         Members
       </CardHeader>
 

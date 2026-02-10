@@ -21,6 +21,18 @@ export function useDashboardMetrics(siteId?: string) {
 }
 
 // =============================================================================
+// Previous Period Metrics Hook (for trend comparison)
+// =============================================================================
+
+export function usePreviousPeriodMetrics(periodDays: number = 30, siteId?: string) {
+  return useQuery({
+    queryKey: [...analyticsKeys.dashboardMetrics(siteId), 'previous', periodDays],
+    queryFn: () => analyticsService.getPreviousPeriodMetrics(periodDays, siteId),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// =============================================================================
 // Member Status Breakdown Hook
 // =============================================================================
 

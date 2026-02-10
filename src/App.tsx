@@ -6,6 +6,14 @@ import { CampaignsPage } from './pages/CampaignsPage';
 import { CampaignDetailPage } from './pages/CampaignDetailPage';
 import { CreateCampaignPage } from './pages/CreateCampaignPage';
 import { EditCampaignPage } from './pages/EditCampaignPage';
+import { TemplateLibraryPage } from './pages/TemplateLibraryPage';
+import { MembersPage } from './pages/MembersPage';
+import { MemberImportPage } from './pages/MemberImportPage';
+import { CreateMemberPage } from './pages/CreateMemberPage';
+import { MemberDetailPage } from './pages/MemberDetailPage';
+import { DataSourcesPage } from './pages/DataSourcesPage';
+import { DataSourceNewPage } from './pages/DataSourceNewPage';
+import { SegmentsPage } from './pages/SegmentsPage';
 import { AdminUsersPage, AdminSettingsPage } from './pages/admin';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -57,6 +65,14 @@ function App() {
                   }
                 />
                 <Route
+                  path="/campaigns/templates"
+                  element={
+                    <ProtectedRoute>
+                      <TemplateLibraryPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/campaigns/new"
                   element={
                     <ProtectedRoute>
@@ -77,6 +93,68 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <EditCampaignPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Segment routes */}
+                <Route
+                  path="/segments"
+                  element={
+                    <ProtectedRoute>
+                      <SegmentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Member routes */}
+                <Route
+                  path="/members"
+                  element={
+                    <ProtectedRoute>
+                      <MembersPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/members/import"
+                  element={
+                    <ProtectedRoute>
+                      <MemberImportPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/members/new"
+                  element={
+                    <ProtectedRoute>
+                      <CreateMemberPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/members/:id"
+                  element={
+                    <ProtectedRoute>
+                      <MemberDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Data Sources routes */}
+                <Route
+                  path="/data-sources"
+                  element={
+                    <ProtectedRoute>
+                      <DataSourcesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/data-sources/new"
+                  element={
+                    <ProtectedRoute>
+                      <DataSourceNewPage />
                     </ProtectedRoute>
                   }
                 />

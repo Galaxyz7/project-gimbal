@@ -10,6 +10,7 @@ import { Badge } from '../common/Badge';
 import { CampaignStatusBadge } from './CampaignStatusBadge';
 import { CampaignTypeIcon } from './CampaignTypeIcon';
 import { CampaignMetrics } from './CampaignMetrics';
+import { CampaignReportDashboard } from './CampaignReportDashboard';
 import { MessageList } from './MessageList';
 import { useCampaign, useCampaignMetrics, useScheduleCampaign, useCancelCampaign } from '@/services/campaigns';
 import type { Campaign } from '@/types/campaign';
@@ -25,7 +26,7 @@ export interface CampaignDetailProps {
   className?: string;
 }
 
-type Tab = 'overview' | 'messages' | 'content';
+type Tab = 'overview' | 'messages' | 'content' | 'report';
 
 // =============================================================================
 // Component
@@ -99,6 +100,7 @@ export function CampaignDetail({
   const canSchedule = campaign.status === 'draft';
   const canCancel = campaign.status === 'scheduled';
   const canSendNow = campaign.status === 'draft';
+  const showReport = campaign.status === 'sent' || campaign.status === 'sending';
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -163,7 +165,9 @@ export function CampaignDetail({
       {/* Tabs */}
       <div className="border-b border-[#e0e0e0]">
         <nav className="flex gap-6">
-          {(['overview', 'messages', 'content'] as Tab[]).map((tab) => (
+          {(
+            ['overview', 'messages', 'content', ...(showReport ? ['report'] : [])] as Tab[]
+          ).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -255,6 +259,13 @@ export function CampaignDetail({
 
       {activeTab === 'messages' && (
         <MessageList campaignId={campaignId} />
+      )}
+
+      {activeTab === 'report' && showReport && (
+        <CampaignReportDashboard
+          campaignId={campaignId}
+          campaignType={campaign.campaignType}
+        />
       )}
 
       {activeTab === 'content' && (

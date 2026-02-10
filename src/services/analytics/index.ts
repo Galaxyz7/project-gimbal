@@ -17,6 +17,7 @@ export type {
 
 export {
   useDashboardMetrics,
+  usePreviousPeriodMetrics,
   useMemberStatusBreakdown,
   useRevenueByMonth,
   useVisitsByDay,

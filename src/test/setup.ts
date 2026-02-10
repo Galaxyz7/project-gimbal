@@ -1,6 +1,12 @@
-import '@testing-library/jest-dom/vitest';
+// Note: vitest globals (describe, it, expect, vi, etc.) are available
+// via globals: true in vitest.config.ts. Do NOT import from 'vitest' here
+// as it causes "failed to find the runner" errors in Vitest 4.x + Node 24.
+
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+
+// Extend expect with jest-dom matchers (use dynamic import to avoid CJS issues)
+const jestDomMatchers = await import('@testing-library/jest-dom/matchers');
+expect.extend(jestDomMatchers);
 
 // Cleanup after each test
 afterEach(() => {

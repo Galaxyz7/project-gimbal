@@ -7,6 +7,7 @@ import { memo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout';
 import { CampaignForm } from '../components/campaigns';
+import { PageHeader } from '../components/common/PageHeader';
 import { useNavigation } from '../hooks/useNavigation';
 import type { Campaign } from '../types/campaign';
 
@@ -37,10 +38,8 @@ export const EditCampaignPage = memo(function EditCampaignPage() {
   if (!id) {
     return (
       <AppLayout navItems={navItems}>
-        <div className="p-6">
-          <div className="text-center py-12">
-            <p className="text-[#d32f2f]">Campaign ID is required</p>
-          </div>
+        <div className="text-center py-12">
+          <p className="text-[#d32f2f]">Campaign ID is required</p>
         </div>
       </AppLayout>
     );
@@ -48,23 +47,17 @@ export const EditCampaignPage = memo(function EditCampaignPage() {
 
   return (
     <AppLayout navItems={navItems}>
-      <div className="p-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-[#003559]">Edit Campaign</h1>
-          <p className="text-gray-500 mt-1">
-            Update campaign details and content
-          </p>
-        </div>
+      <PageHeader
+        title="Edit Campaign"
+        description="Update campaign details and content"
+      />
 
-        {/* Campaign Form */}
-        <CampaignForm
-          campaignId={id}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          className="max-w-3xl"
-        />
-      </div>
+      <CampaignForm
+        campaignId={id}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+        className="max-w-3xl"
+      />
     </AppLayout>
   );
 });

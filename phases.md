@@ -2,7 +2,7 @@
 
 Internal company platform for analytics dashboards and marketing campaign management.
 
-## Current State (~40% Complete)
+## Current State (~65% Complete)
 
 ### Completed
 
@@ -18,9 +18,17 @@ Internal company platform for analytics dashboards and marketing campaign manage
 
 **Pages:**
 - LoginPage (full-featured with rate limiting)
-- DashboardPage (UI complete, mock data)
+- DashboardPage (connected to real CRM data with trend calculations)
+- CampaignsPage, CreateCampaignPage, CampaignDetailPage, EditCampaignPage
+- MembersPage, DataSourcesPage
+- AdminUsersPage, AdminSettingsPage
 
-**CRM Module (NEW):**
+**State Management:**
+- Zustand stores: authStore, uiStore, crmStore
+- React Query: QueryProvider, centralized queryKeys
+- React hooks: useAuth, useToast, useDebounce, useNavigation, useProfile
+
+**CRM Module:**
 - Database migrations: `004_sites_members.sql`, `005_member_transactions_visits.sql`, `006_consent_automation.sql`
 - Types: `src/types/member.ts` (comprehensive type definitions)
 - Components in `src/components/members/`:
@@ -30,24 +38,32 @@ Internal company platform for analytics dashboards and marketing campaign manage
 - Services in `src/services/members/`:
   - siteService, memberService, memberImportService, memberImportDataSourceService
 
+**Campaign Management:**
+- Database migration: `007_campaigns.sql` (campaigns, templates, messages tables)
+- 11 UI components: CampaignList, CampaignCard, CampaignForm, CampaignPreview, CampaignStatus, CampaignMetrics, CampaignDetail, TemplateSelector, TemplateEditor, VariableInserter, CharacterCounter, SchedulePicker
+- Services: campaignService, templateService, messageService, smsService, emailService
+- React Query hooks: useCampaigns, useCampaign, useTemplates, etc.
+- Edge Functions: send-sms, send-email, process-campaign, handle-webhook
+
+**Admin Portal:**
+- Database migration: `008_profiles_app_settings.sql`
+- Components: UserList, UserForm, SettingsForm
+- Services: profileService, settingsService
+
 **Data Import Services:**
 - cleaningService, importTableService, scheduleService
 
-**Hooks & Utilities:**
-- Hooks: useAuth, useToast, useDebounce
-- Utilities: validation, rateLimiter, auditLog, rememberMe, errors
-- Tests: validation.test.ts, rateLimiter.test.ts
+**Analytics:**
+- analyticsService with trend calculations
+- Dashboard connected to real CRM data
 
-### In Progress
-- Connect dashboard to real CRM data
-- Zustand stores (authStore, uiStore, crmStore)
-- React Query setup
+**Testing:**
+- 26 test files, 520 tests, ~78% statement coverage
+- Vitest + React Testing Library infrastructure
 
-### Dependencies to Install
-```bash
-npm install zustand @tanstack/react-query react-hook-form zod @hookform/resolvers recharts dompurify date-fns papaparse
-npm install -D @types/dompurify msw cypress @testing-library/cypress
-```
+**Utilities:**
+- validation, rateLimiter, auditLog, rememberMe, errors
+- Comprehensive test coverage
 
 ---
 
@@ -67,15 +83,15 @@ Created in `src/components/layout/`:
 - [x] AppLayout.tsx (main shell with sidebar)
 - [x] Header.tsx, Sidebar.tsx (collapsible)
 
-### 1.3 State Management ⏳ IN PROGRESS
-Create in `src/stores/`:
-- [ ] authStore.ts (migrate from useAuth hook)
-- [ ] uiStore.ts (sidebar, modals)
-- [ ] crmStore.ts (member/site state)
+### 1.3 State Management ✅ COMPLETE
+Created in `src/stores/`:
+- [x] authStore.ts (Zustand with persist)
+- [x] uiStore.ts (sidebar, modals)
+- [x] crmStore.ts (member/site state)
 
-Create in `src/lib/`:
-- [ ] queryClient.ts (React Query setup)
-- [ ] queryKeys.ts (centralized query keys)
+Created in `src/lib/`:
+- [x] QueryProvider.tsx (React Query setup)
+- [x] queryKeys.ts (centralized query keys for all domains)
 
 ### 1.4 Dashboard Components ✅ COMPLETE
 Created in `src/components/dashboard/`:
@@ -83,20 +99,20 @@ Created in `src/components/dashboard/`:
 - [x] LineChart.tsx, BarChart.tsx
 - [x] DataTable.tsx, DateRangePicker.tsx
 
-### 1.5 Dashboard Real Data ⏳ IN PROGRESS
-- [ ] Create analyticsService to query CRM data
-- [ ] Connect DashboardPage to real member/transaction data
-- [ ] Replace mock SAMPLE_CAMPAIGNS with real queries
+### 1.5 Dashboard Real Data ✅ COMPLETE
+- [x] Created analyticsService with trend calculations
+- [x] Connected DashboardPage to real member/transaction data
+- [x] Replaced mock data with real queries
 
 ### Exit Criteria
 - [x] All common components created
 - [x] Layout responsive on mobile
-- [ ] Zustand stores working
-- [ ] React Query configured
-- [x] Dashboard displays metrics (mock data)
-- [x] Charts render with data (mock data)
+- [x] Zustand stores working
+- [x] React Query configured
+- [x] Dashboard displays metrics
+- [x] Charts render with data
 - [x] Date range filtering works
-- [ ] Dashboard connected to real CRM data
+- [x] Dashboard connected to real CRM data
 
 ---
 
@@ -203,69 +219,37 @@ CREATE POLICY "Users can manage own data sources" ON data_sources FOR ALL USING 
 - CsvUploader.tsx, DatabaseConnector.tsx
 - SyncHistory.tsx
 
-### 2.2 Campaign Management
+### 2.2 Campaign Management ✅ COMPLETE
 
-**Database Migration: `005_campaigns.sql`**
-```sql
-CREATE TABLE campaigns (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) CHECK (type IN ('sms', 'email')),
-    status VARCHAR(50) DEFAULT 'draft',
-    content TEXT,
-    subject TEXT,
-    scheduled_at TIMESTAMPTZ,
-    sent_at TIMESTAMPTZ,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) CHECK (type IN ('sms', 'email')),
-    subject TEXT,
-    content TEXT NOT NULL,
-    variables TEXT[],
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE sms_consent (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    phone_number VARCHAR(20) UNIQUE NOT NULL,
-    consent_given BOOLEAN DEFAULT FALSE,
-    consented_at TIMESTAMPTZ,
-    opt_out_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE email_subscriptions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    subscribed BOOLEAN DEFAULT TRUE,
-    unsubscribed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage own campaigns" ON campaigns FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage own templates" ON templates FOR ALL USING (auth.uid() = user_id);
-```
+**Database Migration: `007_campaigns.sql`** (campaigns, templates, messages, metrics)
 
 **Components** in `src/components/campaigns/`:
-- CampaignList.tsx, CampaignCard.tsx, CampaignForm.tsx
-- CampaignPreview.tsx, CampaignStatus.tsx
-- TemplateSelector.tsx, TemplateEditor.tsx
-- VariableInserter.tsx, CharacterCounter.tsx
-- SchedulePicker.tsx
+- [x] CampaignList, CampaignCard, CampaignForm, CampaignPreview
+- [x] CampaignStatus, CampaignMetrics, CampaignDetail
+- [x] TemplateSelector, TemplateEditor, VariableInserter
+- [x] CharacterCounter, SchedulePicker
+
+**Services** in `src/services/campaigns/`:
+- [x] campaignService, templateService, messageService
+- [x] smsService (TCPA compliance), emailService (CAN-SPAM)
+- [x] React Query hooks for all CRUD operations
 
 **Pages:**
-- CampaignsPage.tsx, CreateCampaignPage.tsx
-- CampaignDetailPage.tsx, TemplatesPage.tsx
+- [x] CampaignsPage, CreateCampaignPage, EditCampaignPage
+- [x] CampaignDetailPage
+
+### 2.3 Starter Template Library ⏳ IN PROGRESS
+
+**Database Migration: `011_starter_templates.sql`**
+- Add `is_system` flag to campaign_templates
+- Seed 8-10 pre-built templates (SMS + Email)
+- CAN-SPAM compliant email templates with `{{unsubscribeUrl}}`
+- SMS templates under 160 characters
+
+**Components:**
+- [ ] TemplateLibrary.tsx (card grid with type badges, preview, "Use Template")
+- [ ] TemplateSelector.tsx enhancement (grouped "Starter" / "My Templates")
+- [ ] Route: `/campaigns/templates`
 
 ### Exit Criteria
 - [ ] Connect CSV upload working
@@ -274,111 +258,72 @@ CREATE POLICY "Users can manage own templates" ON templates FOR ALL USING (auth.
 - [ ] Column configuration (rename, type, exclude)
 - [ ] Cleaning rules apply
 - [ ] Schedule sync working
-- [ ] Create SMS/Email campaigns
-- [ ] Template management
-- [ ] Campaign scheduling
-- [ ] Character counter for SMS
+- [x] Create SMS/Email campaigns
+- [x] Template management
+- [x] Campaign scheduling
+- [x] Character counter for SMS
+- [ ] Starter template library available
 
 ---
 
 ## Phase 3: Messaging & Launch (Week 5-6)
 
-### 3.1 Messaging Integration
-
-**Database Migration: `006_messages.sql`**
-```sql
-CREATE TABLE sms_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
-    recipient VARCHAR(20) NOT NULL,
-    message TEXT NOT NULL,
-    message_sid VARCHAR(100) UNIQUE,
-    status VARCHAR(50),
-    sent_at TIMESTAMPTZ,
-    delivered_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE email_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
-    recipient VARCHAR(255) NOT NULL,
-    subject TEXT,
-    message_id VARCHAR(255) UNIQUE,
-    status VARCHAR(50),
-    sent_at TIMESTAMPTZ,
-    opened_at TIMESTAMPTZ,
-    clicked_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_sms_messages_campaign ON sms_messages(campaign_id);
-CREATE INDEX idx_email_messages_campaign ON email_messages(campaign_id);
-```
+### 3.1 Messaging Integration ✅ COMPLETE
 
 **Edge Functions** in `supabase/functions/`:
-- send-sms/index.ts (Twilio)
-- send-email/index.ts (SendGrid)
-- twilio-webhook/index.ts
-- sendgrid-webhook/index.ts
-- process-campaign/index.ts
+- [x] send-sms/index.ts (Twilio with TCPA compliance)
+- [x] send-email/index.ts (SendGrid with CAN-SPAM compliance)
+- [x] handle-webhook/index.ts (delivery status webhooks)
+- [x] process-campaign/index.ts (full send pipeline with rate limiting)
 
 **Services:**
-- smsService.ts (TCPA consent check, quiet hours)
-- emailService.ts (CAN-SPAM compliance)
-- deliveryService.ts
+- [x] smsService.ts (TCPA consent check, quiet hours)
+- [x] emailService.ts (CAN-SPAM compliance)
+- [x] messageService.ts (message CRUD and status tracking)
 
-### 3.2 Admin Portal
+### 3.2 Admin Portal ✅ COMPLETE
 
-**Database Migration: `007_app_settings.sql`**
-```sql
-CREATE TABLE app_settings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    twilio_account_sid TEXT,
-    twilio_auth_token TEXT,
-    sendgrid_api_key TEXT,
-    timezone VARCHAR(50) DEFAULT 'America/New_York',
-    monthly_sms_limit INTEGER DEFAULT 10000,
-    monthly_email_limit INTEGER DEFAULT 50000,
-    data_retention_days INTEGER DEFAULT 30,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins can manage settings" ON app_settings FOR ALL USING (
-    (auth.jwt()->>'user_metadata')::jsonb->>'role' = 'admin'
-);
-```
+**Database Migration: `008_profiles_app_settings.sql`**
+- [x] profiles table with role-based access
+- [x] app_settings table for messaging credentials
 
 **Components** in `src/components/admin/`:
-- UserList.tsx, UserForm.tsx, RoleSelect.tsx
-- SettingsForm.tsx, IntegrationSettings.tsx
-- AuditLogViewer.tsx
+- [x] UserList.tsx, UserForm.tsx
+- [x] SettingsForm.tsx
 
 **Pages:**
-- admin/UserManagementPage.tsx
-- admin/SettingsPage.tsx
+- [x] AdminUsersPage, AdminSettingsPage
 
-### 3.3 User Testing & Polish
+### 3.3 Campaign Reporting Enhancements (Launch Polish)
+
+> Planned for Phase 3 launch polish. Existing CampaignMetrics shows basic counts; this adds time-series, funnels, and export.
+
+- [ ] campaignReportService.ts (timeline, funnel, top engaged, error summary)
+- [ ] CampaignReportDashboard.tsx (reuses existing chart components)
+- [ ] "Report" tab in CampaignDetail (for sent/sending campaigns)
+- [ ] CSV export for message data
+
+### 3.4 User Testing & Polish
 - Test with 3-5 real users
 - Fix bugs and UX issues
 - Performance optimization
 - Error handling improvements
 
 ### Compliance Checkpoint
-- [ ] TCPA: Prior consent before SMS
-- [ ] TCPA: STOP opt-out honored
-- [ ] TCPA: 8 AM - 9 PM recipient timezone
-- [ ] CAN-SPAM: Physical address in emails
-- [ ] CAN-SPAM: Clear unsubscribe
+- [x] TCPA: Prior consent before SMS (enforced in smsService + DB)
+- [x] TCPA: STOP opt-out honored (handle-webhook + record_sms_opt_out())
+- [x] TCPA: 8 AM - 9 PM recipient timezone (enforced in smsService)
+- [x] CAN-SPAM: Physical address in emails (required in emailService)
+- [x] CAN-SPAM: Clear unsubscribe ({{unsubscribeUrl}} variable)
 
 ### Exit Criteria
-- [ ] Send SMS via Twilio
-- [ ] Send Email via SendGrid
-- [ ] Webhook processing for delivery status
-- [ ] Message tracking in UI
-- [ ] Admin can manage users (3-tier RBAC)
-- [ ] Admin can configure settings
+- [x] Send SMS via Twilio
+- [x] Send Email via SendGrid
+- [x] Webhook processing for delivery status
+- [x] Message tracking in UI
+- [x] Admin can manage users (3-tier RBAC)
+- [x] Admin can configure settings
+- [ ] Campaign reporting dashboard
 - [ ] 3-5 users validated workflow
 - [ ] No critical bugs
 
@@ -388,26 +333,59 @@ CREATE POLICY "Admins can manage settings" ON app_settings FOR ALL USING (
 
 > **Note**: Implement these only after MVP is complete and validated with users.
 
-## Phase A: Visual Builders (2 weeks)
+## Phase A: Visual Builders & Advanced Marketing (2 weeks)
 
 ### Dependencies
 ```bash
 npm install reactflow @reactflow/node-toolbar @reactflow/minimap @reactflow/controls
 ```
 
-### Database Migration: `008_visual_builders.sql`
+### A.1 Visual Builders
+
+**Database Migration: `012_visual_builders.sql`**
 - campaign_flows (React Flow nodes/edges)
 - flow_executions (execution tracking)
-- audience_segments (visual rules)
-- segment_membership
 - custom_dashboards (widget layouts)
 
-### Components
+**Components:**
 - Campaign Flow Builder (trigger → condition → action nodes)
-- Audience Segment Builder (AND/OR rule groups)
 - Dashboard Builder (drag-and-drop widgets)
 
 See `build-docs/10-future/visual-builders.md` for details.
+
+### A.2 Audience Segmentation UI
+
+> Campaign targeting already works via CampaignForm (membership levels, statuses, tags) and `get_campaign_recipients()`. This adds reusable saved segments with a visual builder.
+
+**Database Migration: `013_audience_segments.sql`**
+- `audience_segments` table (rules JSONB, estimated_size, is_dynamic)
+- `segment_id` column on campaigns table
+- RPC: `estimate_segment_size(p_rules JSONB)`
+
+**Components** in `src/components/segments/`:
+- [ ] SegmentBuilder.tsx (AND/OR rule group builder)
+- [ ] RuleGroup.tsx, RuleCondition.tsx
+- [ ] SegmentPreview.tsx (real-time member count)
+- [ ] SegmentSelector.tsx (for CampaignForm)
+
+**Service:** segmentService.ts (CRUD + size estimation)
+**Page:** `/segments`
+
+### A.3 A/B Testing
+
+> Subject line A/B testing with automatic winner determination. Depends on campaign reporting (Phase 3.3) and segmentation (Phase A.2).
+
+**Database Migration: `014_ab_testing.sql`**
+- `is_ab_test`, `ab_test_config`, `parent_campaign_id`, `variant_label` on campaigns
+- `ab_tests` table (test config, winner tracking)
+
+**Components:**
+- [ ] ABTestSetup.tsx (variant B subject, test %, winner metric)
+- [ ] ABTestResults.tsx (side-by-side comparison)
+- [ ] ABTestProgress.tsx (phase indicator)
+
+**Edge Function:** evaluate-ab-test/index.ts (auto winner determination)
+**Service:** abTestService.ts
 
 ---
 
@@ -486,26 +464,29 @@ See `build-docs/10-future/` for detailed documentation:
 | 4 | sites_members | ✅ Done | CRM: Multi-site member management |
 | 5 | member_transactions_visits | ✅ Done | CRM: LTV calculation, visit tracking |
 | 6 | consent_automation | ✅ Done | CRM: TCPA/CAN-SPAM consent, automation |
+| 7 | campaigns | ✅ Done | Campaign management, templates, messages |
+| 8 | profiles_app_settings | ✅ Done | User profiles, app settings, API credentials |
+| 9 | fix_rls_infinite_recursion | ✅ Done | RLS policy fix |
+| 10 | audit_log_cleanup_cron | ✅ Done | Automated audit log cleanup |
 
 ### MVP Migrations - Remaining
 
 | # | Migration | Sprint | Description |
 |---|-----------|--------|-------------|
-| 7 | campaigns | 2 | Campaign management + templates |
-| 8 | messages | 3 | Message delivery tracking |
-| 9 | app_settings | 4 | Application settings, API credentials |
+| 11 | starter_templates | 2 | System template flag + seed data |
 
 ### Post-MVP Migrations
 
 | # | Migration | Phase | Description |
 |---|-----------|-------|-------------|
-| 10 | visual_builders | A | Flow, segment, dashboard builders |
-| 11 | social_media | B | Social account connections |
-| 12 | ai_assistant | C | AI providers, conversations, tokens |
-| 13 | profiles | D | Extended user profiles |
-| 14 | instance_config | D | White-label configuration |
-| 15 | mfa | D | MFA recovery codes |
-| 16 | gdpr | D | Full GDPR data requests |
+| 12 | visual_builders | A | Flow and dashboard builders |
+| 13 | audience_segments | A | Saved audience segments with rules |
+| 14 | ab_testing | A | A/B test configuration and tracking |
+| 15 | social_media | B | Social account connections |
+| 16 | ai_assistant | C | AI providers, conversations, tokens |
+| 17 | instance_config | D | White-label configuration |
+| 18 | mfa | D | MFA recovery codes |
+| 19 | gdpr | D | Full GDPR data requests |
 
 ---
 
@@ -522,24 +503,26 @@ See `build-docs/10-future/` for detailed documentation:
 - [x] TCPA/CAN-SPAM consent management at database level
 - [x] Automation trigger definitions
 
-**Dashboard** ⏳ In Progress:
+**Dashboard** ✅ Complete:
 - [x] UI components complete (metrics, charts, tables)
-- [ ] Connected to real CRM data
-- [ ] Date range filtering with real data
+- [x] Connected to real CRM data with analyticsService
+- [x] Date range filtering with trend calculations
 
 **Data Import** ⏳ Partial:
 - [x] Import services (cleaning, scheduling)
 - [ ] Data Sources UI components
 - [ ] GA4 and Meta Pixel connectors
 
-**Campaigns** ❌ Not Started:
-- [ ] SMS/Email campaigns can be created and sent
-- [ ] Template management
-- [ ] Twilio/SendGrid integration
+**Campaigns** ✅ Complete:
+- [x] SMS/Email campaigns can be created and sent
+- [x] Template management (CRUD + variable rendering)
+- [x] Twilio/SendGrid integration (Edge Functions)
+- [x] TCPA/CAN-SPAM compliance enforced
+- [ ] Starter template library
 
-**Admin Portal** ❌ Not Started:
-- [ ] Admin can manage users (Admin/User/Viewer)
-- [ ] Admin can configure settings
+**Admin Portal** ✅ Complete:
+- [x] Admin can manage users (Admin/User/Viewer)
+- [x] Admin can configure settings
 
 **Validation:**
 - [ ] 3-5 users validated the workflow

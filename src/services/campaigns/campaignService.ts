@@ -46,6 +46,7 @@ function transformCampaign(row: Record<string, unknown>): Campaign {
     campaignType: row.campaign_type as Campaign['campaignType'],
     status: row.status as Campaign['status'],
     templateId: row.template_id as string | null,
+    segmentId: row.segment_id as string | null,
     subject: row.subject as string | null,
     content: row.content as string,
     scheduledAt: row.scheduled_at as string | null,
@@ -64,7 +65,7 @@ function transformCampaign(row: Record<string, unknown>): Campaign {
     totalClicked: row.total_clicked as number,
     totalBounced: row.total_bounced as number,
     totalUnsubscribed: row.total_unsubscribed as number,
-    metadata: row.metadata as Record<string, unknown>,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -87,6 +88,8 @@ function transformCampaignWithDetails(row: Record<string, unknown>): CampaignWit
       content: template.content as string,
       preheader: template.preheader as string | null,
       isActive: template.is_active as boolean,
+      isSystem: (template.is_system as boolean) ?? false,
+      tags: (template.tags as string[]) ?? [],
       createdAt: template.created_at as string,
       updatedAt: template.updated_at as string,
     };
@@ -202,6 +205,7 @@ export async function createCampaign(input: CreateCampaignInput): Promise<Campai
       description: input.description || null,
       campaign_type: input.campaignType,
       template_id: input.templateId || null,
+      segment_id: input.segmentId || null,
       subject: input.subject || null,
       content: input.content,
       scheduled_at: input.scheduledAt || null,
@@ -232,6 +236,7 @@ export async function updateCampaign(id: string, input: UpdateCampaignInput): Pr
   if (input.siteId !== undefined) updateData.site_id = input.siteId;
   if (input.description !== undefined) updateData.description = input.description;
   if (input.templateId !== undefined) updateData.template_id = input.templateId;
+  if (input.segmentId !== undefined) updateData.segment_id = input.segmentId;
   if (input.subject !== undefined) updateData.subject = input.subject;
   if (input.content !== undefined) updateData.content = input.content;
   if (input.scheduledAt !== undefined) updateData.scheduled_at = input.scheduledAt;
@@ -321,10 +326,12 @@ export async function getCampaignMetrics(campaignId: string): Promise<CampaignMe
     totalOpened: row.total_opened as number,
     totalClicked: row.total_clicked as number,
     totalBounced: row.total_bounced as number,
+    totalUnsubscribed: (row.total_unsubscribed as number) ?? 0,
     deliveryRate: row.delivery_rate as number,
     openRate: row.open_rate as number,
     clickRate: row.click_rate as number,
     bounceRate: row.bounce_rate as number,
+    unsubscribeRate: (row.unsubscribe_rate as number) ?? 0,
   };
 }
 

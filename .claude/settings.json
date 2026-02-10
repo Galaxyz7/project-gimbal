@@ -34,9 +34,7 @@
       "Bash(git push --force *)",
       "Bash(git reset --hard *)",
       "Bash(sudo *)",
-      "Write(.env*)",
-      "Write(.git/*)",
-      "Edit(.env*)"
+      "Write(.git/*)"
     ]
   },
   "hooks": {

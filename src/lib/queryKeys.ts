@@ -104,6 +104,24 @@ export const campaignKeys = {
   detail: (id: string) => [...campaignKeys.details(), id] as const,
   metrics: (id: string) => [...campaignKeys.all, 'metrics', id] as const,
   messages: (id: string) => [...campaignKeys.all, 'messages', id] as const,
+  timeline: (id: string, interval?: string) =>
+    [...campaignKeys.all, 'timeline', id, interval] as const,
+  funnel: (id: string) => [...campaignKeys.all, 'funnel', id] as const,
+  topEngaged: (id: string) => [...campaignKeys.all, 'topEngaged', id] as const,
+  errorSummary: (id: string) => [...campaignKeys.all, 'errorSummary', id] as const,
+  deviceBreakdown: (id: string) => [...campaignKeys.all, 'deviceBreakdown', id] as const,
+};
+
+// =============================================================================
+// Segment Keys
+// =============================================================================
+
+export const segmentKeys = {
+  all: ['segments'] as const,
+  lists: () => [...segmentKeys.all, 'list'] as const,
+  details: () => [...segmentKeys.all, 'detail'] as const,
+  detail: (id: string) => [...segmentKeys.details(), id] as const,
+  estimate: (rules: unknown) => [...segmentKeys.all, 'estimate', rules] as const,
 };
 
 // =============================================================================
@@ -113,8 +131,8 @@ export const campaignKeys = {
 export const templateKeys = {
   all: ['templates'] as const,
   lists: () => [...templateKeys.all, 'list'] as const,
-  list: (type?: 'sms' | 'email') =>
-    [...templateKeys.lists(), type] as const,
+  list: (params?: { type?: 'sms' | 'email'; search?: string; tags?: string[] }) =>
+    [...templateKeys.lists(), params] as const,
   details: () => [...templateKeys.all, 'detail'] as const,
   detail: (id: string) => [...templateKeys.details(), id] as const,
 };

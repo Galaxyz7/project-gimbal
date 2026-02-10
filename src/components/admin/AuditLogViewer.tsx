@@ -141,7 +141,7 @@ function AuditLogRow({ log }: AuditLogRowProps) {
                 <div className="font-mono text-xs truncate">{log.userAgent}</div>
               </div>
             )}
-            {Object.keys(log.metadata).length > 0 && (
+            {log.metadata && Object.keys(log.metadata).length > 0 && (
               <div className="col-span-2">
                 <span className="text-gray-500">Metadata</span>
                 <pre className="mt-1 p-2 bg-white rounded border border-[#e0e0e0] text-xs overflow-auto max-h-40">

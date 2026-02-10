@@ -26,7 +26,6 @@ npm run lint         # ESLint
 **Charts:** Recharts
 **Backend:** Supabase (PostgreSQL + Auth + Storage + Edge Functions)
 **Messaging:** Twilio (SMS), SendGrid (Email)
-**External:** Sentry (errors)
 **Testing:** Vitest + React Testing Library (unit), Cypress (E2E), MSW (mocking)
 
 ### Future Tech (Post-MVP)

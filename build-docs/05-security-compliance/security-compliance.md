@@ -659,7 +659,6 @@ Approved Vendors:
 - Supabase: SOC 2 Type II, GDPR compliant
 - Twilio: SOC 2 Type II, HIPAA compliant
 - SendGrid: SOC 2 Type II, GDPR compliant
-- Sentry: SOC 2 Type II, GDPR compliant
 - Vercel: SOC 2 Type II, GDPR compliant
 ```
 
@@ -1032,7 +1031,6 @@ const extensionAuditEvents = {
 - Supabase Security: https://supabase.com/security
 
 ### Tools
-- Sentry (error tracking)
 - GitHub Advanced Security
 - Dependabot (dependency updates)
 - CodeQL (SAST)

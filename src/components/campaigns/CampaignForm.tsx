@@ -15,6 +15,7 @@ import { Card } from '../common/Card';
 import { TemplateSelector } from './TemplateSelector';
 import { ContentEditor } from './ContentEditor';
 import { SiteSelector } from '../members/SiteSelector';
+import { SegmentSelector } from '../segments/SegmentSelector';
 import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/services/campaigns';
 import type { Campaign, CampaignType, CampaignTemplate } from '@/types/campaign';
 
@@ -45,6 +46,7 @@ const campaignSchema = z
     subject: z.string().max(255).optional().nullable(),
     content: z.string().min(1, 'Message content is required'),
     scheduledAt: z.string().optional().nullable(),
+    segmentId: z.string().optional().nullable(),
     targetAllMembers: z.boolean(),
     membershipStatuses: z.array(z.string()),
   })
@@ -122,6 +124,7 @@ export function CampaignForm({
       subject: '',
       content: '',
       scheduledAt: null,
+      segmentId: null,
       targetAllMembers: false,
       membershipStatuses: ['active'],
     },
@@ -143,6 +146,7 @@ export function CampaignForm({
         subject: existingCampaign.subject || '',
         content: existingCampaign.content,
         scheduledAt: existingCampaign.scheduledAt || null,
+        segmentId: existingCampaign.segmentId || null,
         targetAllMembers: existingCampaign.targetAllMembers,
         membershipStatuses: existingCampaign.membershipStatuses,
       });
@@ -161,6 +165,14 @@ export function CampaignForm({
       }
     },
     [setValue, watchedType]
+  );
+
+  // Handle segment selection
+  const handleSegmentChange = useCallback(
+    (segmentId: string | null) => {
+      setValue('segmentId', segmentId, { shouldDirty: true });
+    },
+    [setValue]
   );
 
   // Handle site selection
@@ -189,6 +201,7 @@ export function CampaignForm({
             subject: data.subject || null,
             content: data.content,
             scheduledAt: data.scheduledAt || null,
+            segmentId: data.segmentId || null,
             targetAllMembers: data.targetAllMembers,
             membershipStatuses: data.membershipStatuses,
           },
@@ -203,6 +216,7 @@ export function CampaignForm({
           subject: data.subject || null,
           content: data.content,
           scheduledAt: data.scheduledAt || null,
+          segmentId: data.segmentId || null,
           targetAllMembers: data.targetAllMembers,
           membershipStatuses: data.membershipStatuses,
         });
@@ -365,6 +379,21 @@ export function CampaignForm({
           <h3 className="text-sm font-medium text-gray-700 border-b border-[#e0e0e0] pb-2">
             Audience Targeting
           </h3>
+
+          {/* Saved Segment */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Use Saved Segment
+            </label>
+            <SegmentSelector
+              value={watch('segmentId') || null}
+              onChange={handleSegmentChange}
+              placeholder="No segment — use filters below"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Select a saved segment or use the manual filters below
+            </p>
+          </div>
 
           {/* Target all members toggle */}
           <div className="flex items-center gap-2">

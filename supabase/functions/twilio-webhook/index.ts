@@ -162,6 +162,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.log('Message update skipped:', updateError.message);
     }
 
+    // Handle SMS opt-out: Twilio error 21610 = message blocked due to opt-out
+    if (payload.ErrorCode === '21610' && payload.To) {
+      await supabase.rpc('record_sms_opt_out', {
+        p_phone: payload.To,
+        p_reason: 'STOP keyword received (Twilio error 21610)',
+      });
+    }
+
     // Update campaign aggregate stats if we found the message
     if (message?.campaign_id && (newStatus === 'delivered' || newStatus === 'failed')) {
       const statsField =

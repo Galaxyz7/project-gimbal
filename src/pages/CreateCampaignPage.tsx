@@ -7,6 +7,7 @@ import { memo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../components/layout';
 import { CampaignForm } from '../components/campaigns';
+import { PageHeader } from '../components/common/PageHeader';
 import { useNavigation } from '../hooks/useNavigation';
 import type { Campaign, CampaignType } from '../types/campaign';
 
@@ -36,23 +37,17 @@ export const CreateCampaignPage = memo(function CreateCampaignPage() {
 
   return (
     <AppLayout navItems={navItems}>
-      <div className="p-6">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-[#003559]">Create Campaign</h1>
-          <p className="text-gray-500 mt-1">
-            Set up a new SMS or email marketing campaign
-          </p>
-        </div>
+      <PageHeader
+        title="Create Campaign"
+        description="Set up a new SMS or email marketing campaign"
+      />
 
-        {/* Campaign Form */}
-        <CampaignForm
-          campaignType={campaignType}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          className="max-w-3xl"
-        />
-      </div>
+      <CampaignForm
+        campaignType={campaignType}
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+        className="max-w-3xl"
+      />
     </AppLayout>
   );
 });

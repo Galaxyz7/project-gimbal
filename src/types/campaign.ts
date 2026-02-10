@@ -26,6 +26,7 @@ export interface Campaign {
   campaignType: CampaignType;
   status: CampaignStatus;
   templateId: string | null;
+  segmentId: string | null;
   subject: string | null;
   content: string;
   scheduledAt: string | null;
@@ -64,6 +65,7 @@ export interface CreateCampaignInput {
   description?: string | null;
   campaignType: CampaignType;
   templateId?: string | null;
+  segmentId?: string | null;
   subject?: string | null;
   content: string;
   scheduledAt?: string | null;
@@ -100,10 +102,12 @@ export interface CampaignMetrics {
   totalOpened: number;
   totalClicked: number;
   totalBounced: number;
+  totalUnsubscribed: number;
   deliveryRate: number;
   openRate: number;
   clickRate: number;
   bounceRate: number;
+  unsubscribeRate: number;
 }
 
 // =============================================================================
@@ -119,7 +123,9 @@ export interface CampaignTemplate {
   subject: string | null;
   content: string;
   preheader: string | null;
+  tags: string[];
   isActive: boolean;
+  isSystem: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +137,15 @@ export interface CreateTemplateInput {
   subject?: string | null;
   content: string;
   preheader?: string | null;
+  tags?: string[];
+}
+
+export interface TemplateStats {
+  templateId: string;
+  timesUsed: number;
+  avgOpenRate: number;
+  avgClickRate: number;
+  lastUsedAt: string | null;
 }
 
 export interface UpdateTemplateInput extends Partial<CreateTemplateInput> {
@@ -157,6 +172,8 @@ export interface CampaignMessage {
   externalId: string | null;
   providerStatus: string | null;
   errorMessage: string | null;
+  deviceType: string | null;
+  userAgent: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -182,6 +199,49 @@ export interface CampaignRecipient {
   phone: string | null;
   siteId: string;
   siteTimezone: string;
+}
+
+// =============================================================================
+// Campaign Reporting Types
+// =============================================================================
+
+export interface CampaignTimelinePoint {
+  timeBucket: string;
+  sent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  failed: number;
+  bounced: number;
+}
+
+export interface CampaignFunnelStage {
+  stage: string;
+  count: number;
+  rate: number;
+}
+
+export interface CampaignErrorSummary {
+  errorMessage: string;
+  count: number;
+  lastOccurred: string;
+}
+
+export interface TopEngagedRecipient {
+  memberId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  status: MessageStatus;
+  openedAt: string | null;
+  clickedAt: string | null;
+}
+
+export interface CampaignDeviceBreakdown {
+  deviceType: string;
+  count: number;
+  rate: number;
 }
 
 // =============================================================================

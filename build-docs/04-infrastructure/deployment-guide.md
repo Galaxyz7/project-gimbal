@@ -13,7 +13,6 @@ This guide covers the deployment process for Project Gimbal instances, including
 - [ ] Cloudflare account (for DNS management)
 - [ ] Twilio account (for SMS functionality)
 - [ ] SendGrid account (for email functionality)
-- [ ] Sentry account (for error tracking)
 
 ### Required Tools
 ```bash
@@ -74,10 +73,6 @@ VITE_ENABLE_EMAIL=false
 # External Services (Test/Sandbox)
 VITE_TWILIO_ACCOUNT_SID=test_account
 VITE_SENDGRID_API_KEY=test_key
-
-# Error Tracking
-VITE_SENTRY_DSN=<sentry-dsn>
-VITE_SENTRY_ENVIRONMENT=development
 ```
 
 #### `.env.staging`
@@ -99,10 +94,6 @@ VITE_ENABLE_EMAIL=true
 # External Services (Test/Sandbox)
 VITE_TWILIO_ACCOUNT_SID=<staging-account>
 VITE_SENDGRID_API_KEY=<staging-key>
-
-# Error Tracking
-VITE_SENTRY_DSN=<sentry-dsn>
-VITE_SENTRY_ENVIRONMENT=staging
 ```
 
 #### `.env.production`
@@ -124,10 +115,6 @@ VITE_ENABLE_EMAIL=true
 # External Services (Production)
 VITE_TWILIO_ACCOUNT_SID=<prod-account>
 VITE_SENDGRID_API_KEY=<prod-key>
-
-# Error Tracking
-VITE_SENTRY_DSN=<sentry-dsn>
-VITE_SENTRY_ENVIRONMENT=production
 ```
 
 **IMPORTANT**: Never commit `.env` files to version control. Use `.env.example` as a template.
@@ -317,7 +304,6 @@ Create `vercel.json`:
 vercel env add VITE_SUPABASE_URL production
 vercel env add VITE_SUPABASE_ANON_KEY production
 vercel env add VITE_INSTANCE_ID production
-vercel env add VITE_SENTRY_DSN production
 
 # Or via Vercel Dashboard
 1. Go to Project Settings > Environment Variables
@@ -605,7 +591,6 @@ echo "Admin: $ADMIN_EMAIL"
 - [ ] Verify application loads at custom domain
 - [ ] Test user login/logout
 - [ ] Verify database connection
-- [ ] Check error tracking (Sentry)
 - [ ] Test critical user flows
 - [ ] Verify SSL certificate
 - [ ] Check security headers

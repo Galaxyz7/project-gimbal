@@ -52,7 +52,6 @@ Internal company platform for analytics dashboards and marketing campaign manage
 **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 **Messaging:** Twilio (SMS), SendGrid (Email)
 **Testing:** Vitest + React Testing Library + Cypress
-**Monitoring:** Sentry
 
 **Post-MVP Tech (Phase A-C):**
 - React Flow (visual builders)

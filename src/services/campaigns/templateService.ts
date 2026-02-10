@@ -10,6 +10,7 @@ import type {
   UpdateTemplateInput,
   CampaignType,
   SmsValidationResult,
+  TemplateStats,
 } from '@/types/campaign';
 
 // =============================================================================
@@ -43,7 +44,9 @@ function transformTemplate(row: Record<string, unknown>): CampaignTemplate {
     subject: row.subject as string | null,
     content: row.content as string,
     preheader: row.preheader as string | null,
+    tags: (row.tags as string[]) ?? [],
     isActive: row.is_active as boolean,
+    isSystem: (row.is_system as boolean) ?? false,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -54,17 +57,29 @@ function transformTemplate(row: Record<string, unknown>): CampaignTemplate {
 // =============================================================================
 
 /**
- * Get all templates with optional type filter
+ * Get all templates with optional type, search, and tags filters
  */
-export async function getTemplates(type?: CampaignType): Promise<CampaignTemplate[]> {
+export async function getTemplates(params?: {
+  type?: CampaignType;
+  search?: string;
+  tags?: string[];
+}): Promise<CampaignTemplate[]> {
   let query = supabase
     .from('campaign_templates')
     .select('*')
     .eq('is_active', true)
     .order('name', { ascending: true });
 
-  if (type) {
-    query = query.eq('template_type', type);
+  if (params?.type) {
+    query = query.eq('template_type', params.type);
+  }
+
+  if (params?.search) {
+    query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%,content.ilike.%${params.search}%`);
+  }
+
+  if (params?.tags && params.tags.length > 0) {
+    query = query.contains('tags', params.tags);
   }
 
   const { data, error } = await query;
@@ -74,6 +89,50 @@ export async function getTemplates(type?: CampaignType): Promise<CampaignTemplat
   }
 
   return (data || []).map(transformTemplate);
+}
+
+/**
+ * Get starter (system) templates with optional type filter
+ */
+export async function getStarterTemplates(type?: CampaignType): Promise<CampaignTemplate[]> {
+  let query = supabase
+    .from('campaign_templates')
+    .select('*')
+    .eq('is_active', true)
+    .eq('is_system', true)
+    .order('template_type', { ascending: true })
+    .order('name', { ascending: true });
+
+  if (type) {
+    query = query.eq('template_type', type);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw TemplateServiceError('Failed to fetch starter templates', error);
+  }
+
+  return (data || []).map(transformTemplate);
+}
+
+/**
+ * Duplicate a system template into the user's own collection
+ */
+export async function duplicateTemplate(templateId: string, newName?: string): Promise<CampaignTemplate> {
+  const source = await getTemplateById(templateId);
+  if (!source) {
+    throw TemplateServiceError('Template not found');
+  }
+
+  return createTemplate({
+    name: newName || `${source.name} (Copy)`,
+    description: source.description,
+    templateType: source.templateType,
+    subject: source.subject,
+    content: source.content,
+    preheader: source.preheader,
+  });
 }
 
 /**
@@ -107,6 +166,7 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Campai
       subject: input.subject || null,
       content: input.content,
       preheader: input.preheader || null,
+      tags: input.tags || [],
     })
     .select()
     .single();
@@ -130,6 +190,7 @@ export async function updateTemplate(id: string, input: UpdateTemplateInput): Pr
   if (input.subject !== undefined) updateData.subject = input.subject;
   if (input.content !== undefined) updateData.content = input.content;
   if (input.preheader !== undefined) updateData.preheader = input.preheader;
+  if (input.tags !== undefined) updateData.tags = input.tags;
   if (input.isActive !== undefined) updateData.is_active = input.isActive;
 
   const { data, error } = await supabase
@@ -292,16 +353,50 @@ export function validateTemplateVariables(
 }
 
 // =============================================================================
+// Template Stats (Item 7)
+// =============================================================================
+
+/**
+ * Get performance stats for all templates (times used, avg rates)
+ */
+export async function getAllTemplateStats(): Promise<TemplateStats[]> {
+  const { data, error } = await supabase.rpc('get_all_template_stats');
+
+  if (error) {
+    throw TemplateServiceError('Failed to fetch template stats', error);
+  }
+
+  if (!data) return [];
+
+  return (data as Array<{
+    template_id: string;
+    times_used: number;
+    avg_open_rate: number;
+    avg_click_rate: number;
+    last_used_at: string | null;
+  }>).map((row) => ({
+    templateId: row.template_id,
+    timesUsed: Number(row.times_used),
+    avgOpenRate: Number(row.avg_open_rate),
+    avgClickRate: Number(row.avg_click_rate),
+    lastUsedAt: row.last_used_at,
+  }));
+}
+
+// =============================================================================
 // Export Service Object
 // =============================================================================
 
 export const templateService = {
   getTemplates,
+  getStarterTemplates,
   getTemplateById,
   createTemplate,
   updateTemplate,
   deleteTemplate,
   hardDeleteTemplate,
+  duplicateTemplate,
+  getAllTemplateStats,
   validateSmsContent,
   renderTemplate,
   extractTemplateVariables,

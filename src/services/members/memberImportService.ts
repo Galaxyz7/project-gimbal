@@ -272,13 +272,14 @@ function transformRowToMember(
       case 'acquisitionSource':
         member.acquisitionSource = parseAcquisitionSource(value);
         break;
-      case 'tags':
+      case 'tags': {
         const newTags = String(value || '')
           .split(',')
           .map((t) => t.trim())
           .filter(Boolean);
         member.tags = [...(member.tags || []), ...newTags];
         break;
+      }
       default:
         if (mapping.targetField in member) {
           (member as unknown as Record<string, unknown>)[mapping.targetField] = value || null;

@@ -51,3 +51,10 @@ export type { AlertProps, AlertVariant } from './Alert';
 // Empty State
 export { EmptyState, ErrorState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+
+// Page Header
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';
+
+// Icons
+export { PlusIcon, UploadIcon } from './icons';

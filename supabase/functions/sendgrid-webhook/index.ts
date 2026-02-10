@@ -34,6 +34,18 @@ interface SendGridEvent {
   memberId?: string;
 }
 
+// =============================================================================
+// Device Classification
+// =============================================================================
+
+function classifyDeviceType(ua: string): 'desktop' | 'mobile' | 'tablet' | 'unknown' {
+  if (!ua) return 'unknown';
+  if (/iPad|Android(?!.*Mobile)|Kindle|Silk|PlayBook/i.test(ua)) return 'tablet';
+  if (/iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|BB10|Opera Mini|IEMobile/i.test(ua)) return 'mobile';
+  if (/Mozilla|Chrome|Safari|Firefox|Edge|MSIE|Trident/i.test(ua)) return 'desktop';
+  return 'unknown';
+}
+
 // SendGrid event mapping to our message status
 const EVENT_STATUS_MAP: Record<string, string> = {
   processed: 'sent',
@@ -79,7 +91,7 @@ async function verifySendGridSignature(
 
     // Import the public key
     const key = await crypto.subtle.importKey(
-      'raw',
+      'spki',
       Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
@@ -113,24 +125,17 @@ async function handleUnsubscribe(
   supabase: ReturnType<typeof createSupabaseAdmin>,
   event: SendGridEvent
 ): Promise<void> {
-  // Find member by email and update consent
-  const { data: member } = await supabase
-    .from('members')
-    .select('id')
-    .eq('email', event.email)
-    .single();
+  const reason = event.event === 'spamreport'
+    ? 'Spam report received'
+    : 'User unsubscribed via email link';
 
-  if (member) {
-    await supabase
-      .from('member_consent')
-      .update({
-        email_marketing: false,
-        email_opted_out_at: new Date().toISOString(),
-      })
-      .eq('member_id', member.id);
+  // Use the DB function which handles consent update + audit logging
+  await supabase.rpc('record_email_unsubscribe', {
+    p_email: event.email,
+    p_reason: reason,
+  });
 
-    console.log(`Unsubscribe processed for member: ${member.id}`);
-  }
+  console.log(`Unsubscribe processed for email: ${event.email}`);
 }
 
 async function updateMessageStatus(
@@ -161,6 +166,12 @@ async function updateMessageStatus(
       updateData.failed_at = now;
       updateData.error_message = event.reason || event.response || 'Delivery failed';
       break;
+  }
+
+  // Capture device info on open/click events
+  if ((event.event === 'open' || event.event === 'click') && event.useragent) {
+    updateData.user_agent = event.useragent;
+    updateData.device_type = classifyDeviceType(event.useragent);
   }
 
   // Update message record using sg_message_id

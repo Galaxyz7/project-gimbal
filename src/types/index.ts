@@ -7,3 +7,4 @@ export * from './admin';
 export * from './campaign';
 export * from './dataImport';
 export * from './member';
+export * from './segment';

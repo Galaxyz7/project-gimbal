@@ -21,7 +21,7 @@ export interface AppLayoutProps {
   /** Current user info */
   user?: HeaderUser | null;
   /** Called when user menu action is triggered */
-  onUserAction?: (action: 'profile' | 'settings' | 'logout') => void;
+  onUserAction?: (action: 'settings' | 'logout') => void;
   /** Custom actions for header */
   headerActions?: ReactNode;
   /** Sidebar logo */

@@ -24,6 +24,7 @@ import type { DateRange, DataTableColumn } from '../components/dashboard';
 // Analytics Hooks
 import {
   useDashboardMetrics,
+  usePreviousPeriodMetrics,
   useEngagementTrends,
   useRevenueByMonth,
   useMembershipLevelBreakdown,
@@ -99,6 +100,7 @@ export const DashboardPage = memo(function DashboardPage() {
 
   // Fetch dashboard data using React Query
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
+  const { data: previousMetrics } = usePreviousPeriodMetrics(30);
   const { data: engagementTrends, isLoading: engagementLoading } = useEngagementTrends(dateRange);
   const { data: revenueByMonth, isLoading: revenueLoading } = useRevenueByMonth(6);
   const { data: membershipBreakdown, isLoading: membershipLoading } = useMembershipLevelBreakdown();
@@ -207,7 +209,7 @@ export const DashboardPage = memo(function DashboardPage() {
     navigate('/login');
   }
 
-  function handleUserAction(action: 'profile' | 'settings' | 'logout') {
+  function handleUserAction(action: 'settings' | 'logout') {
     if (action === 'logout') {
       handleLogout();
     } else if (action === 'settings') {
@@ -215,16 +217,26 @@ export const DashboardPage = memo(function DashboardPage() {
     }
   }
 
-  // Calculate trends (mock for now - would compare to previous period)
-  const memberTrend = metrics?.newMembersThisMonth ?? 0;
-  const revenueTrend = metrics?.revenueThisMonth && metrics.totalRevenue
-    ? ((metrics.revenueThisMonth / (metrics.totalRevenue - metrics.revenueThisMonth)) * 100)
-    : 0;
+  // Calculate trends by comparing current period to previous period
+  const memberTrend = useMemo(() => {
+    if (!metrics || !previousMetrics) return 0;
+    const current = metrics.newMembersThisMonth;
+    const previous = previousMetrics.previousMembers;
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  }, [metrics, previousMetrics]);
+
+  const revenueTrend = useMemo(() => {
+    if (!metrics || !previousMetrics) return 0;
+    const current = metrics.revenueThisMonth;
+    const previous = previousMetrics.previousRevenue;
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  }, [metrics, previousMetrics]);
 
   return (
     <AppLayout
       navItems={navItems}
-      pageTitle="Dashboard"
       breadcrumbs={[{ label: 'Dashboard' }]}
       user={user ? { name: user.email?.split('@')[0] || 'User', email: user.email || '' } : null}
       onUserAction={handleUserAction}
@@ -238,7 +250,7 @@ export const DashboardPage = memo(function DashboardPage() {
       {/* Header with Date Range Picker */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#003559]">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-[#003559]">Dashboard</h1>
           <p className="text-sm text-gray-500">
             Welcome back, <span className="font-medium">{user?.email?.split('@')[0]}</span>
           </p>

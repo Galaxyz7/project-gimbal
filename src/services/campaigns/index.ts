@@ -5,6 +5,7 @@
 
 // Services
 export { campaignService } from './campaignService';
+export { campaignReportService } from './campaignReportService';
 export { templateService } from './templateService';
 export { messageService } from './messageService';
 export { smsService } from './smsService';
@@ -24,12 +25,21 @@ export {
   useScheduleCampaign,
   useCancelCampaign,
   useQueueCampaignMessages,
+  // Report hooks
+  useCampaignTimeline,
+  useCampaignFunnel,
+  useTopEngaged,
+  useCampaignErrorSummary,
+  useCampaignDeviceBreakdown,
   // Template hooks
   useTemplates,
+  useStarterTemplates,
   useTemplate,
   useCreateTemplate,
   useUpdateTemplate,
   useDeleteTemplate,
+  useDuplicateTemplate,
+  useAllTemplateStats,
   // Message hooks
   useUpdateMessageStatus,
 } from './useCampaigns';
@@ -52,4 +62,10 @@ export type {
   MessageStatus,
   CampaignRecipient,
   SmsValidationResult,
+  CampaignTimelinePoint,
+  CampaignFunnelStage,
+  CampaignErrorSummary,
+  TopEngagedRecipient,
+  TemplateStats,
+  CampaignDeviceBreakdown,
 } from '@/types/campaign';

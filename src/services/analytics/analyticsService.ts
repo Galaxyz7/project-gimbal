@@ -153,6 +153,77 @@ export const analyticsService = {
   },
 
   /**
+   * Get metrics for the previous equivalent period (for trend comparison).
+   * E.g. if periodDays=30, compares days -60 to -30 vs -30 to today.
+   */
+  async getPreviousPeriodMetrics(
+    periodDays: number = 30,
+    siteId?: string
+  ): Promise<{ previousMembers: number; previousRevenue: number; previousVisits: number }> {
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setDate(periodEnd.getDate() - periodDays);
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - (periodDays * 2));
+
+    const periodStartISO = periodStart.toISOString();
+    const periodEndISO = periodEnd.toISOString();
+
+    // Members created in previous period
+    let membersQuery = supabase
+      .from('members')
+      .select('id', { count: 'exact' })
+      .eq('is_active', true)
+      .gte('created_at', periodStartISO)
+      .lt('created_at', periodEndISO);
+
+    if (siteId) {
+      membersQuery = membersQuery.eq('site_id', siteId);
+    }
+
+    const { count: previousMembers } = await membersQuery;
+
+    // Revenue in previous period
+    let transactionsQuery = supabase
+      .from('member_transactions')
+      .select('amount, transaction_type')
+      .gte('transaction_date', periodStartISO)
+      .lt('transaction_date', periodEndISO);
+
+    if (siteId) {
+      transactionsQuery = transactionsQuery.eq('site_id', siteId);
+    }
+
+    const { data: transactions } = await transactionsQuery;
+
+    const previousRevenue = transactions?.reduce((sum, t) => {
+      if (t.transaction_type === 'refund') {
+        return sum - Math.abs(t.amount);
+      }
+      return sum + (t.amount || 0);
+    }, 0) ?? 0;
+
+    // Visits in previous period
+    let visitsQuery = supabase
+      .from('member_visits')
+      .select('id', { count: 'exact' })
+      .gte('visit_date', periodStartISO.split('T')[0])
+      .lt('visit_date', periodEndISO.split('T')[0]);
+
+    if (siteId) {
+      visitsQuery = visitsQuery.eq('site_id', siteId);
+    }
+
+    const { count: previousVisits } = await visitsQuery;
+
+    return {
+      previousMembers: previousMembers ?? 0,
+      previousRevenue,
+      previousVisits: previousVisits ?? 0,
+    };
+  },
+
+  /**
    * Get member status breakdown
    */
   async getMemberStatusBreakdown(siteId?: string): Promise<MemberStatusBreakdown[]> {
@@ -318,6 +389,7 @@ export const analyticsService = {
       totalLtv: number;
     }> = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     members.forEach((m: any) => {
       const levelId = m.membership_level_id || 'none';
       const levelName = m.membership_levels?.name || 'No Level';
@@ -373,6 +445,7 @@ export const analyticsService = {
       return [];
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return members.map((m: any) => ({
       id: m.id,
       firstName: m.first_name,

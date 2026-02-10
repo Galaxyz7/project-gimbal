@@ -116,11 +116,6 @@ src/
 - **Primary**: SendGrid (excellent deliverability, analytics, templates)
 - **Alternative**: AWS SES (cost-effective, high volume)
 
-### Error Tracking
-- **Sentry** for frontend and backend error tracking
-- Performance monitoring integration
-- Session replay for debugging
-
 ### Analytics
 - **Vercel Analytics** for web vitals
 - **Custom metrics** in Supabase for business analytics

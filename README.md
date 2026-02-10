@@ -46,7 +46,6 @@ npm run dev
 - **Forms**: React Hook Form + Zod
 - **Messaging**: Twilio (SMS), SendGrid (Email)
 - **Testing**: Vitest, React Testing Library, Cypress
-- **Monitoring**: Sentry
 
 ## Project Structure
 

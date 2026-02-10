@@ -62,7 +62,7 @@ function toAuditLog(row: AuditLogRow): AuditLog {
     email: row.email,
     ipAddress: row.ip_address,
     userAgent: row.user_agent,
-    metadata: row.metadata,
+    metadata: row.metadata ?? {},
     createdAt: row.created_at,
   };
 }

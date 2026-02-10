@@ -8,6 +8,7 @@ import { campaignKeys, templateKeys } from '@/lib/queryKeys';
 import { campaignService } from './campaignService';
 import { templateService } from './templateService';
 import { messageService } from './messageService';
+import { campaignReportService } from './campaignReportService';
 import type {
   CampaignSearchParams,
   CreateCampaignInput,
@@ -167,16 +168,110 @@ export function useQueueCampaignMessages() {
 }
 
 // =============================================================================
+// Report Hooks
+// =============================================================================
+
+/**
+ * Fetch campaign delivery timeline
+ */
+export function useCampaignTimeline(id: string, interval: 'hour' | 'day' = 'hour') {
+  return useQuery({
+    queryKey: campaignKeys.timeline(id, interval),
+    queryFn: () => campaignReportService.getCampaignTimeline(id, interval),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Fetch campaign delivery funnel
+ */
+export function useCampaignFunnel(id: string) {
+  return useQuery({
+    queryKey: campaignKeys.funnel(id),
+    queryFn: () => campaignReportService.getCampaignFunnel(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Fetch top engaged recipients
+ */
+export function useTopEngaged(id: string, limit = 10) {
+  return useQuery({
+    queryKey: campaignKeys.topEngaged(id),
+    queryFn: () => campaignReportService.getTopEngagedRecipients(id, limit),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Fetch error summary
+ */
+export function useCampaignErrorSummary(id: string) {
+  return useQuery({
+    queryKey: campaignKeys.errorSummary(id),
+    queryFn: () => campaignReportService.getCampaignErrorSummary(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Fetch device type breakdown (email only)
+ */
+export function useCampaignDeviceBreakdown(id: string) {
+  return useQuery({
+    queryKey: campaignKeys.deviceBreakdown(id),
+    queryFn: () => campaignReportService.getCampaignDeviceBreakdown(id),
+    enabled: !!id,
+  });
+}
+
+// =============================================================================
 // Template Hooks
 // =============================================================================
 
 /**
- * Fetch templates list
+ * Fetch templates list with optional search and tag filters
  */
-export function useTemplates(type?: CampaignType) {
+export function useTemplates(params?: { type?: CampaignType; search?: string; tags?: string[] }) {
   return useQuery({
-    queryKey: templateKeys.list(type),
-    queryFn: () => templateService.getTemplates(type),
+    queryKey: templateKeys.list(params),
+    queryFn: () => templateService.getTemplates(params),
+  });
+}
+
+/**
+ * Fetch template performance stats
+ */
+export function useAllTemplateStats() {
+  return useQuery({
+    queryKey: [...templateKeys.all, 'stats'],
+    queryFn: () => templateService.getAllTemplateStats(),
+  });
+}
+
+/**
+ * Fetch starter (system) templates
+ */
+export function useStarterTemplates(type?: CampaignType) {
+  return useQuery({
+    queryKey: [...templateKeys.all, 'starter', type],
+    queryFn: () => templateService.getStarterTemplates(type),
+  });
+}
+
+/**
+ * Duplicate a template (e.g. customize a starter template)
+ */
+export function useDuplicateTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ templateId, newName }: { templateId: string; newName?: string }) =>
+      templateService.duplicateTemplate(templateId, newName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.all });
+    },
   });
 }
 

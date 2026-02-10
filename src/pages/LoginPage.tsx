@@ -20,11 +20,15 @@ export function LoginPage() {
   useEffect(() => {
     if (email) {
       const sanitized = sanitizeEmail(email);
-      const locked = rateLimiter.isLocked(sanitized);
-      setIsLocked(locked);
-      if (locked) {
-        setLockoutTime(rateLimiter.getLockoutTimeRemaining(sanitized));
+      async function checkLockout() {
+        const locked = await rateLimiter.isLocked(sanitized);
+        setIsLocked(locked);
+        if (locked) {
+          const remaining = await rateLimiter.getLockoutTimeRemaining(sanitized);
+          setLockoutTime(remaining);
+        }
       }
+      checkLockout();
     }
   }, [email]);
 
@@ -37,8 +41,9 @@ export function LoginPage() {
     const sanitizedEmail = sanitizeEmail(email);
 
     // Check rate limiting
-    if (rateLimiter.isLocked(sanitizedEmail)) {
-      const remainingTime = rateLimiter.getLockoutTimeRemaining(sanitizedEmail);
+    const locked = await rateLimiter.isLocked(sanitizedEmail);
+    if (locked) {
+      const remainingTime = await rateLimiter.getLockoutTimeRemaining(sanitizedEmail);
       setError(`Account temporarily locked. Please try again in ${remainingTime} minutes.`);
       setLoading(false);
       auditLogger.log(AuditEventType.ACCOUNT_LOCKED, sanitizedEmail);
@@ -53,8 +58,8 @@ export function LoginPage() {
 
       if (error) throw error;
 
-      // Success! Reset rate limiter and log success
-      rateLimiter.reset(sanitizedEmail);
+      // Success! Record success and reset rate limiter
+      await rateLimiter.recordSuccess(sanitizedEmail);
       auditLogger.log(AuditEventType.LOGIN_SUCCESS, sanitizedEmail, {
         rememberMe,
       });
@@ -78,17 +83,17 @@ export function LoginPage() {
     } catch (err) {
       // Record failed attempt
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      rateLimiter.recordFailedAttempt(sanitizedEmail);
+      await rateLimiter.recordFailedAttempt(sanitizedEmail);
       auditLogger.log(AuditEventType.LOGIN_FAILED, sanitizedEmail, {
         error: errorMessage,
       });
 
-      const remainingAttempts = rateLimiter.getRemainingAttempts(sanitizedEmail);
+      const remainingAttempts = await rateLimiter.getRemainingAttempts(sanitizedEmail);
 
       if (remainingAttempts > 0) {
         setError(`Invalid credentials. ${remainingAttempts} attempts remaining.`);
       } else {
-        const lockTime = rateLimiter.getLockoutTimeRemaining(sanitizedEmail);
+        const lockTime = await rateLimiter.getLockoutTimeRemaining(sanitizedEmail);
         setError(`Too many failed attempts. Account locked for ${lockTime} minutes.`);
         setIsLocked(true);
         setLockoutTime(lockTime);

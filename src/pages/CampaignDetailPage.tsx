@@ -33,10 +33,8 @@ export const CampaignDetailPage = memo(function CampaignDetailPage() {
   if (!id) {
     return (
       <AppLayout navItems={navItems}>
-        <div className="p-6">
-          <div className="text-center py-12">
-            <p className="text-[#d32f2f]">Campaign ID is required</p>
-          </div>
+        <div className="text-center py-12">
+          <p className="text-[#d32f2f]">Campaign ID is required</p>
         </div>
       </AppLayout>
     );
@@ -44,13 +42,11 @@ export const CampaignDetailPage = memo(function CampaignDetailPage() {
 
   return (
     <AppLayout navItems={navItems}>
-      <div className="p-6">
-        <CampaignDetail
-          campaignId={id}
-          onBack={handleBack}
-          onEdit={handleEdit}
-        />
-      </div>
+      <CampaignDetail
+        campaignId={id}
+        onBack={handleBack}
+        onEdit={handleEdit}
+      />
     </AppLayout>
   );
 });

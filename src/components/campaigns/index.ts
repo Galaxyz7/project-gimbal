@@ -22,6 +22,11 @@ export { CampaignMetrics } from './CampaignMetrics';
 // Message Tracking
 export { MessageList } from './MessageList';
 
+// Reporting & Preview
+export { CampaignReportDashboard } from './CampaignReportDashboard';
+export { EmailPreviewModal } from './EmailPreviewModal';
+export { TemplateLibrary } from './TemplateLibrary';
+
 // Types re-export for convenience
 export type { CampaignListProps } from './CampaignList';
 export type { CampaignDetailProps } from './CampaignDetail';
@@ -30,3 +35,6 @@ export type { CampaignMetricsProps } from './CampaignMetrics';
 export type { ContentEditorProps } from './ContentEditor';
 export type { TemplateSelectorProps } from './TemplateSelector';
 export type { MessageListProps } from './MessageList';
+export type { CampaignReportDashboardProps } from './CampaignReportDashboard';
+export type { EmailPreviewModalProps } from './EmailPreviewModal';
+export type { TemplateLibraryProps } from './TemplateLibrary';

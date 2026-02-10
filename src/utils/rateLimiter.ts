@@ -1,106 +1,90 @@
 /**
- * Rate Limiter for Login Attempts
- * Prevents brute force attacks by limiting login attempts
+ * Rate Limiter for Login Attempts (Server-Side)
+ * Prevents brute force attacks by tracking login attempts in the database.
+ * All state lives in the `login_attempts` table — not localStorage.
  */
 
-import { RATE_LIMIT, STORAGE_KEYS } from '../constants/app';
+import { supabase } from '@/lib/supabase';
+import { RATE_LIMIT } from '../constants/app';
 
-interface LoginAttempt {
-  count: number;
-  firstAttempt: number;
-  lockedUntil?: number;
-}
-
-export class RateLimiter {
-  private getAttempts(email: string): LoginAttempt {
-    try {
-      const data = localStorage.getItem(`${STORAGE_KEYS.LOGIN_ATTEMPTS}-${email}`);
-      return data ? JSON.parse(data) : { count: 0, firstAttempt: Date.now() };
-    } catch {
-      return { count: 0, firstAttempt: Date.now() };
-    }
-  }
-
-  private setAttempts(email: string, attempts: LoginAttempt): void {
-    try {
-      localStorage.setItem(`${STORAGE_KEYS.LOGIN_ATTEMPTS}-${email}`, JSON.stringify(attempts));
-    } catch (error) {
-      console.error('Failed to save login attempts:', error);
-    }
-  }
-
+export const rateLimiter = {
   /**
    * Check if user is currently locked out
    */
-  isLocked(email: string): boolean {
-    const attempts = this.getAttempts(email);
-
-    if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-      return true;
-    }
-
-    // Reset if lockout period has passed
-    if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
-      this.reset(email);
+  async isLocked(email: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('is_account_locked', {
+      user_email: email,
+    });
+    if (error) {
+      console.error('Failed to check account lock status:', error);
       return false;
     }
-
-    return false;
-  }
+    return data === true;
+  },
 
   /**
    * Get remaining time for lockout in minutes
    */
-  getLockoutTimeRemaining(email: string): number {
-    const attempts = this.getAttempts(email);
-    if (!attempts.lockedUntil) return 0;
-
-    const remaining = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
-    return Math.max(0, remaining);
-  }
+  async getLockoutTimeRemaining(email: string): Promise<number> {
+    const { data, error } = await supabase.rpc('get_lockout_time_remaining', {
+      user_email: email,
+    });
+    if (error) {
+      console.error('Failed to get lockout time:', error);
+      return 0;
+    }
+    return data ?? 0;
+  },
 
   /**
    * Record a failed login attempt
    */
-  recordFailedAttempt(email: string): void {
-    const attempts = this.getAttempts(email);
-    const now = Date.now();
-
-    // Reset count if attempt window has passed
-    if (now - attempts.firstAttempt > RATE_LIMIT.ATTEMPT_WINDOW_MS) {
-      attempts.count = 1;
-      attempts.firstAttempt = now;
-      delete attempts.lockedUntil;
-    } else {
-      attempts.count++;
-
-      // Lock account if max attempts reached
-      if (attempts.count >= RATE_LIMIT.MAX_ATTEMPTS) {
-        attempts.lockedUntil = now + RATE_LIMIT.LOCKOUT_DURATION_MS;
-      }
+  async recordFailedAttempt(email: string): Promise<void> {
+    const { error } = await supabase.rpc('record_login_attempt', {
+      user_email: email,
+      user_ip: null,
+      was_success: false,
+    });
+    if (error) {
+      console.error('Failed to record login attempt:', error);
     }
-
-    this.setAttempts(email, attempts);
-  }
-
-  /**
-   * Reset attempts after successful login
-   */
-  reset(email: string): void {
-    try {
-      localStorage.removeItem(`${STORAGE_KEYS.LOGIN_ATTEMPTS}-${email}`);
-    } catch (error) {
-      console.error('Failed to reset login attempts:', error);
-    }
-  }
+  },
 
   /**
    * Get remaining attempts before lockout
    */
-  getRemainingAttempts(email: string): number {
-    const attempts = this.getAttempts(email);
-    return Math.max(0, RATE_LIMIT.MAX_ATTEMPTS - attempts.count);
-  }
-}
+  async getRemainingAttempts(email: string): Promise<number> {
+    const { data, error } = await supabase.rpc('get_failed_attempt_count', {
+      user_email: email,
+    });
+    if (error) {
+      console.error('Failed to get attempt count:', error);
+      return RATE_LIMIT.MAX_ATTEMPTS;
+    }
+    return Math.max(0, RATE_LIMIT.MAX_ATTEMPTS - (data ?? 0));
+  },
 
-export const rateLimiter = new RateLimiter();
+  /**
+   * Reset attempts (called after successful login)
+   */
+  async reset(email: string): Promise<void> {
+    const { error } = await supabase.rpc('reset_login_attempts', {
+      user_email: email,
+    });
+    if (error) {
+      console.error('Failed to reset login attempts:', error);
+    }
+  },
+
+  /**
+   * Record a successful login and reset attempt counter
+   */
+  async recordSuccess(email: string): Promise<void> {
+    await supabase.rpc('record_login_attempt', {
+      user_email: email,
+      user_ip: null,
+      was_success: true,
+    });
+    await this.reset(email);
+  },
+};

@@ -48,7 +48,9 @@ function transformMessage(row: Record<string, unknown>): CampaignMessage {
     externalId: row.external_id as string | null,
     providerStatus: row.provider_status as string | null,
     errorMessage: row.error_message as string | null,
-    metadata: row.metadata as Record<string, unknown>,
+    deviceType: (row.device_type as string) ?? null,
+    userAgent: (row.user_agent as string) ?? null,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
   };
 }
 

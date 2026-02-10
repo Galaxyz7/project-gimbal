@@ -11,14 +11,8 @@ export const AUTH_CONSTANTS = {
 } as const;
 
 export const RATE_LIMIT = {
-  /** Maximum login attempts before lockout */
+  /** Maximum login attempts before lockout (server enforces 15-min window) */
   MAX_ATTEMPTS: 5,
-  /** Lockout duration in milliseconds (15 minutes) */
-  LOCKOUT_DURATION_MS: 15 * 60 * 1000,
-  /** Lockout duration in minutes */
-  LOCKOUT_DURATION_MIN: 15,
-  /** Window for counting failed attempts in milliseconds (5 minutes) */
-  ATTEMPT_WINDOW_MS: 5 * 60 * 1000,
 } as const;
 
 export const STORAGE_KEYS = {
@@ -26,8 +20,6 @@ export const STORAGE_KEYS = {
   REMEMBER_ME: 'gimbal-remember-me',
   /** Remember me expiration timestamp */
   REMEMBER_ME_EXPIRES: 'gimbal-remember-me-expires',
-  /** Login attempts prefix (append email) */
-  LOGIN_ATTEMPTS: 'gimbal-login-attempts',
   /** Audit logs storage */
   AUDIT_LOGS: 'gimbal-audit-logs',
   /** Auth token storage key */

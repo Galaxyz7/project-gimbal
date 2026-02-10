@@ -41,7 +41,7 @@ See [10-future/](10-future/README.md) for detailed documentation on post-MVP fea
 - **Forms**: React Hook Form + Zod
 - **Messaging**: Twilio (SMS), SendGrid (Email)
 - **Hosting**: Vercel/Netlify + Supabase
-- **Monitoring**: Sentry
+- **Monitoring**: Vercel Analytics
 
 **Post-MVP Tech:**
 - Visual Builders: React Flow
@@ -156,7 +156,6 @@ Feature-specific documentation and implementation details.
 Monitoring, observability, and operational procedures.
 
 - [**Monitoring & Observability**](08-operations/monitoring-observability.md)
-  - Sentry error tracking
   - Performance monitoring (Web Vitals)
   - Application metrics
   - Database monitoring
@@ -266,9 +265,6 @@ VITE_SUPABASE_ANON_KEY=<anon-key>
 # External Services (configured in admin settings)
 # Twilio and SendGrid credentials stored encrypted in database
 
-# Monitoring
-VITE_SENTRY_DSN=<sentry-dsn>
-VITE_SENTRY_ENVIRONMENT=production
 ```
 
 See [Deployment Guide](04-infrastructure/deployment-guide.md#environment-setup) for complete reference.
@@ -330,7 +326,6 @@ See [Security & Compliance](05-security-compliance/security-compliance.md) for d
 
 ### Health & Status
 - Health check endpoint: `https://gimbal.app/api/health`
-- Sentry dashboard for error tracking
 - Supabase dashboard for database metrics
 
 ### Support Contacts

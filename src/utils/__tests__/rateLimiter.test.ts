@@ -1,136 +1,184 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RateLimiter } from '../rateLimiter';
+
+const mockRpc = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    rpc: mockRpc,
+  },
+}));
+
+import { rateLimiter } from '../rateLimiter';
 import { RATE_LIMIT } from '../../constants/app';
 
-describe('RateLimiter', () => {
-  let rateLimiter: RateLimiter;
-  const testEmail = 'test@example.com';
-
+describe('rateLimiter (server-side)', () => {
   beforeEach(() => {
-    localStorage.clear();
-    rateLimiter = new RateLimiter();
+    mockRpc.mockReset();
   });
 
   describe('isLocked', () => {
-    it('should return false for new users', () => {
-      expect(rateLimiter.isLocked(testEmail)).toBe(false);
+    it('should return false when account is not locked', async () => {
+      mockRpc.mockResolvedValueOnce({ data: false, error: null });
+
+      const result = await rateLimiter.isLocked('test@example.com');
+
+      expect(result).toBe(false);
+      expect(mockRpc).toHaveBeenCalledWith('is_account_locked', {
+        user_email: 'test@example.com',
+      });
     });
 
-    it('should return true when user is locked out', () => {
-      // Record max attempts to trigger lockout
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
-      expect(rateLimiter.isLocked(testEmail)).toBe(true);
+    it('should return true when account is locked', async () => {
+      mockRpc.mockResolvedValueOnce({ data: true, error: null });
+
+      const result = await rateLimiter.isLocked('test@example.com');
+
+      expect(result).toBe(true);
     });
 
-    it('should return false after lockout period expires', () => {
-      // Record max attempts
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
+    it('should return false on RPC error', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB error' } });
 
-      // Mock time passing
-      vi.useFakeTimers();
-      vi.advanceTimersByTime(RATE_LIMIT.LOCKOUT_DURATION_MS + 1000);
+      const result = await rateLimiter.isLocked('test@example.com');
 
-      expect(rateLimiter.isLocked(testEmail)).toBe(false);
-      vi.useRealTimers();
-    });
-  });
-
-  describe('recordFailedAttempt', () => {
-    it('should increment attempt count', () => {
-      rateLimiter.recordFailedAttempt(testEmail);
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS - 1);
-    });
-
-    it('should lock account after max attempts', () => {
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
-      expect(rateLimiter.isLocked(testEmail)).toBe(true);
-    });
-
-    it('should reset count after attempt window passes', () => {
-      rateLimiter.recordFailedAttempt(testEmail);
-      rateLimiter.recordFailedAttempt(testEmail);
-
-      // Mock time passing beyond attempt window
-      vi.useFakeTimers();
-      vi.advanceTimersByTime(RATE_LIMIT.ATTEMPT_WINDOW_MS + 1000);
-
-      rateLimiter.recordFailedAttempt(testEmail);
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS - 1);
-      vi.useRealTimers();
+      expect(result).toBe(false);
     });
   });
 
   describe('getLockoutTimeRemaining', () => {
-    it('should return 0 for non-locked users', () => {
-      expect(rateLimiter.getLockoutTimeRemaining(testEmail)).toBe(0);
+    it('should return minutes remaining', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 12, error: null });
+
+      const result = await rateLimiter.getLockoutTimeRemaining('test@example.com');
+
+      expect(result).toBe(12);
+      expect(mockRpc).toHaveBeenCalledWith('get_lockout_time_remaining', {
+        user_email: 'test@example.com',
+      });
     });
 
-    it('should return positive minutes for locked users', () => {
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
-      const remaining = rateLimiter.getLockoutTimeRemaining(testEmail);
-      expect(remaining).toBeGreaterThan(0);
-      expect(remaining).toBeLessThanOrEqual(RATE_LIMIT.LOCKOUT_DURATION_MIN);
+    it('should return 0 when not locked', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 0, error: null });
+
+      const result = await rateLimiter.getLockoutTimeRemaining('test@example.com');
+
+      expect(result).toBe(0);
+    });
+
+    it('should return 0 on RPC error', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB error' } });
+
+      const result = await rateLimiter.getLockoutTimeRemaining('test@example.com');
+
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('recordFailedAttempt', () => {
+    it('should call record_login_attempt with success=false', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
+
+      await rateLimiter.recordFailedAttempt('test@example.com');
+
+      expect(mockRpc).toHaveBeenCalledWith('record_login_attempt', {
+        user_email: 'test@example.com',
+        user_ip: null,
+        was_success: false,
+      });
+    });
+
+    it('should not throw on RPC error', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB error' } });
+
+      await expect(rateLimiter.recordFailedAttempt('test@example.com')).resolves.toBeUndefined();
     });
   });
 
   describe('getRemainingAttempts', () => {
-    it('should return max attempts for new users', () => {
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS);
+    it('should return max attempts when no failures', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 0, error: null });
+
+      const result = await rateLimiter.getRemainingAttempts('test@example.com');
+
+      expect(result).toBe(RATE_LIMIT.MAX_ATTEMPTS);
+      expect(mockRpc).toHaveBeenCalledWith('get_failed_attempt_count', {
+        user_email: 'test@example.com',
+      });
     });
 
-    it('should decrease with each failed attempt', () => {
-      rateLimiter.recordFailedAttempt(testEmail);
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS - 1);
+    it('should return remaining attempts after failures', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 3, error: null });
 
-      rateLimiter.recordFailedAttempt(testEmail);
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS - 2);
+      const result = await rateLimiter.getRemainingAttempts('test@example.com');
+
+      expect(result).toBe(RATE_LIMIT.MAX_ATTEMPTS - 3);
     });
 
-    it('should return 0 when locked', () => {
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(0);
+    it('should return 0 when at or past max attempts', async () => {
+      mockRpc.mockResolvedValueOnce({ data: RATE_LIMIT.MAX_ATTEMPTS + 1, error: null });
+
+      const result = await rateLimiter.getRemainingAttempts('test@example.com');
+
+      expect(result).toBe(0);
+    });
+
+    it('should return max attempts on RPC error', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB error' } });
+
+      const result = await rateLimiter.getRemainingAttempts('test@example.com');
+
+      expect(result).toBe(RATE_LIMIT.MAX_ATTEMPTS);
     });
   });
 
   describe('reset', () => {
-    it('should clear all attempts', () => {
-      rateLimiter.recordFailedAttempt(testEmail);
-      rateLimiter.recordFailedAttempt(testEmail);
-      rateLimiter.reset(testEmail);
-      expect(rateLimiter.getRemainingAttempts(testEmail)).toBe(RATE_LIMIT.MAX_ATTEMPTS);
+    it('should call reset_login_attempts', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
+
+      await rateLimiter.reset('test@example.com');
+
+      expect(mockRpc).toHaveBeenCalledWith('reset_login_attempts', {
+        user_email: 'test@example.com',
+      });
     });
 
-    it('should unlock a locked account', () => {
-      for (let i = 0; i < RATE_LIMIT.MAX_ATTEMPTS; i++) {
-        rateLimiter.recordFailedAttempt(testEmail);
-      }
-      expect(rateLimiter.isLocked(testEmail)).toBe(true);
+    it('should not throw on RPC error', async () => {
+      mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB error' } });
 
-      rateLimiter.reset(testEmail);
-      expect(rateLimiter.isLocked(testEmail)).toBe(false);
+      await expect(rateLimiter.reset('test@example.com')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('recordSuccess', () => {
+    it('should record success and then reset attempts', async () => {
+      mockRpc.mockResolvedValue({ data: null, error: null });
+
+      await rateLimiter.recordSuccess('test@example.com');
+
+      expect(mockRpc).toHaveBeenCalledTimes(2);
+      expect(mockRpc).toHaveBeenCalledWith('record_login_attempt', {
+        user_email: 'test@example.com',
+        user_ip: null,
+        was_success: true,
+      });
+      expect(mockRpc).toHaveBeenCalledWith('reset_login_attempts', {
+        user_email: 'test@example.com',
+      });
     });
   });
 
   describe('different users', () => {
-    it('should track attempts separately per email', () => {
-      const user1 = 'user1@example.com';
-      const user2 = 'user2@example.com';
+    it('should pass different emails to RPC calls', async () => {
+      mockRpc.mockResolvedValue({ data: false, error: null });
 
-      rateLimiter.recordFailedAttempt(user1);
-      rateLimiter.recordFailedAttempt(user1);
+      await rateLimiter.isLocked('user1@example.com');
+      await rateLimiter.isLocked('user2@example.com');
 
-      expect(rateLimiter.getRemainingAttempts(user1)).toBe(RATE_LIMIT.MAX_ATTEMPTS - 2);
-      expect(rateLimiter.getRemainingAttempts(user2)).toBe(RATE_LIMIT.MAX_ATTEMPTS);
+      expect(mockRpc).toHaveBeenCalledWith('is_account_locked', {
+        user_email: 'user1@example.com',
+      });
+      expect(mockRpc).toHaveBeenCalledWith('is_account_locked', {
+        user_email: 'user2@example.com',
+      });
     });
   });
 });

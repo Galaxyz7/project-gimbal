@@ -10,7 +10,6 @@ Comprehensive monitoring and observability strategy for Project Gimbal ensures s
 
 ```
 Application Layer:
-  - Sentry (Error tracking & performance)
   - Vercel Analytics (Web vitals)
   - Custom metrics (Supabase)
 
@@ -26,98 +25,6 @@ Aggregation:
   - Custom dashboard (Gimbal Admin Portal)
 ```
 
-## Error Tracking
-
-### Sentry Integration
-
-#### Setup
-
-```typescript
-// src/main.tsx
-import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
-
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT,
-  integrations: [
-    new BrowserTracing(),
-    new Sentry.Replay({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
-  tracesSampleRate: 0.1, // 10% of transactions
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-
-  beforeSend(event, hint) {
-    // Filter sensitive data
-    if (event.request?.headers) {
-      delete event.request.headers.Authorization;
-    }
-    return event;
-  },
-});
-```
-
-#### Error Boundaries
-
-```typescript
-import { ErrorBoundary } from '@sentry/react';
-
-function App() {
-  return (
-    <ErrorBoundary
-      fallback={({ error, resetError }) => (
-        <ErrorFallback error={error} resetError={resetError} />
-      )}
-      showDialog
-    >
-      <Router />
-    </ErrorBoundary>
-  );
-}
-
-function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
-  return (
-    <div className="error-container">
-      <h1>Something went wrong</h1>
-      <p>{error.message}</p>
-      <button onClick={resetError}>Try again</button>
-    </div>
-  );
-}
-```
-
-#### Custom Error Tracking
-
-```typescript
-// Capture custom errors
-try {
-  await sendCampaign(campaignId);
-} catch (error) {
-  Sentry.captureException(error, {
-    tags: {
-      feature: 'campaigns',
-      campaignId
-    },
-    level: 'error',
-    extra: {
-      campaignData: campaign
-    }
-  });
-  throw error;
-}
-
-// Capture messages
-Sentry.captureMessage('User reached quota limit', {
-  level: 'warning',
-  tags: { userId: user.id },
-  extra: { quota: user.quota, usage: user.usage }
-});
-```
-
 ## Performance Monitoring
 
 ### Web Vitals
@@ -127,9 +34,6 @@ Sentry.captureMessage('User reached quota limit', {
 import { onCLS, onFID, onFCP, onLCP, onTTFB } from 'web-vitals';
 
 function sendToAnalytics(metric: Metric) {
-  // Send to Sentry
-  Sentry.setMeasurement(metric.name, metric.value, metric.unit);
-
   // Send to custom analytics
   supabase.from('web_vitals').insert({
     metric_name: metric.name,
@@ -160,10 +64,10 @@ function checkPerformance(metric: Metric) {
   const threshold = performanceThresholds[metric.name as keyof typeof performanceThresholds];
 
   if (metric.value > threshold) {
-    Sentry.captureMessage(`Poor ${metric.name} performance`, {
-      level: 'warning',
-      tags: { metric: metric.name },
-      extra: { value: metric.value, threshold }
+    console.warn(`Poor ${metric.name} performance`, {
+      metric: metric.name,
+      value: metric.value,
+      threshold
     });
   }
 }
@@ -401,14 +305,6 @@ class Logger {
     // Send to logging service (production)
     if (import.meta.env.PROD) {
       this.sendToLoggingService(entry);
-    }
-
-    // Send errors to Sentry
-    if (level === LogLevel.ERROR || level === LogLevel.FATAL) {
-      Sentry.captureMessage(message, {
-        level: level,
-        extra: meta
-      });
     }
   }
 
@@ -753,7 +649,7 @@ const runbooks = {
   highErrorRate: {
     title: 'High Error Rate Response',
     steps: [
-      '1. Check Sentry dashboard for error patterns',
+      '1. Check error logs for error patterns',
       '2. Identify affected components',
       '3. Check recent deployments (potential rollback)',
       '4. Review infrastructure metrics',
@@ -826,7 +722,6 @@ const runbooks = {
 
 ## Tools Reference
 
-- **Sentry**: https://sentry.io
 - **Vercel Analytics**: https://vercel.com/analytics
 - **Supabase Metrics**: Built-in dashboard
 - **Lighthouse CI**: https://github.com/GoogleChrome/lighthouse-ci

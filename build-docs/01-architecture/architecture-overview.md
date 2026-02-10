@@ -44,14 +44,14 @@ Project Gimbal is an **internal company platform** for analytics dashboards and 
     │  Messaging APIs   │       │   Data Source APIs    │      │   Monitoring/Ops    │
     │      (MVP)        │       │       (MVP)           │      │                     │
     │ ┌──────────────┐  │       │ ┌─────────────────┐   │      │ ┌─────────────────┐ │
-    │ │    Twilio    │  │       │ │ Google Analytics│   │      │ │     Sentry      │ │
-    │ │    (SMS)     │  │       │ │       (GA4)     │   │      │ │   (Errors)      │ │
+    │ │    Twilio    │  │       │ │ Google Analytics│   │      │ │   Cloudflare    │ │
+    │ │    (SMS)     │  │       │ │       (GA4)     │   │      │ │     (CDN)       │ │
     │ └──────────────┘  │       │ └─────────────────┘   │      │ └─────────────────┘ │
     │                   │       │                       │      │                     │
-    │ ┌──────────────┐  │       │ ┌─────────────────┐   │      │ ┌─────────────────┐ │
-    │ │  SendGrid    │  │       │ │   Meta Pixel    │   │      │ │   Cloudflare    │ │
-    │ │   (Email)    │  │       │ │   (Facebook)    │   │      │ │     (CDN)       │ │
-    │ └──────────────┘  │       │ └─────────────────┘   │      │ └─────────────────┘ │
+    │ ┌──────────────┐  │       │ ┌─────────────────┐   │      │                     │
+    │ │  SendGrid    │  │       │ │   Meta Pixel    │   │      │                     │
+    │ │   (Email)    │  │       │ │   (Facebook)    │   │      │                     │
+    │ └──────────────┘  │       │ └─────────────────┘   │      │                     │
     └───────────────────┘       │                       │      └─────────────────────┘
                                 │ ┌─────────────────┐   │
                                 │ │  CSV / Custom   │   │
@@ -442,7 +442,6 @@ Campaign Trigger → Edge Function → SendGrid API → Email Delivery
 ## Monitoring & Observability
 
 ### Application Monitoring
-- **Frontend**: Sentry for error tracking
 - **Backend**: Supabase built-in monitoring
 - **Performance**: Web Vitals tracking
 - **Usage**: Custom analytics dashboard
@@ -450,7 +449,6 @@ Campaign Trigger → Edge Function → SendGrid API → Email Delivery
 ### Logging Strategy
 - **Application Logs**: Structured JSON logs
 - **Audit Logs**: Database-backed audit trail
-- **Error Logs**: Centralized in Sentry
 - **Access Logs**: Supabase access logs
 
 ## Development Architecture
@@ -518,7 +516,6 @@ Git Push → GitHub Actions → Build & Test → Deploy to Staging
 - Custom OpenAI-compatible endpoints
 
 ### Monitoring & Operations
-- Sentry (Error tracking)
 - Cloudflare (CDN)
 - Vercel/Netlify (Hosting)
 
@@ -556,7 +553,6 @@ Git Push → GitHub Actions → Build & Test → Deploy to Staging
 ### Backend Error Handling
 - Structured error responses
 - HTTP status codes
-- Error logging to Sentry
 - Retry mechanisms for external APIs
 
 ## Future Considerations
