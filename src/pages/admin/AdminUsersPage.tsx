@@ -8,7 +8,6 @@ import { AppLayout } from '../../components/layout';
 import { UserList, UserForm } from '../../components/admin';
 import { Modal } from '../../components/common/Modal';
 import { PageHeader } from '../../components/common/PageHeader';
-import { useCurrentProfile } from '../../hooks/useProfile';
 import { useNavigation } from '../../hooks/useNavigation';
 
 // =============================================================================
@@ -16,7 +15,6 @@ import { useNavigation } from '../../hooks/useNavigation';
 // =============================================================================
 
 export const AdminUsersPage = memo(function AdminUsersPage() {
-  const { data: currentUser } = useCurrentProfile();
   const { navItems } = useNavigation();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
@@ -35,7 +33,6 @@ export const AdminUsersPage = memo(function AdminUsersPage() {
   return (
     <AppLayout
       navItems={navItems}
-      user={currentUser ? { name: currentUser.displayName || currentUser.email, email: currentUser.email } : null}
     >
       <PageHeader
         title="User Management"

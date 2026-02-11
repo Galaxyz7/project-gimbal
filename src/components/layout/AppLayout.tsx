@@ -1,9 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import type { NavItem } from './Sidebar';
 import { Header } from './Header';
-import type { HeaderUser } from './Header';
+import { CommandPalette } from '../common/CommandPalette';
+import { useCommandPalette } from '../../hooks/useCommandPalette';
+import { HELP_NAV_ITEM } from '../../constants/navigation';
 
 // =============================================================================
 // Types
@@ -18,10 +21,6 @@ export interface AppLayoutProps {
   pageTitle?: string;
   /** Breadcrumb items */
   breadcrumbs?: Array<{ label: string; href?: string }>;
-  /** Current user info */
-  user?: HeaderUser | null;
-  /** Called when user menu action is triggered */
-  onUserAction?: (action: 'settings' | 'logout') => void;
   /** Custom actions for header */
   headerActions?: ReactNode;
   /** Sidebar logo */
@@ -66,8 +65,6 @@ export function AppLayout({
   navItems,
   pageTitle,
   breadcrumbs,
-  user,
-  onUserAction,
   headerActions,
   logo,
   logoCollapsed,
@@ -83,6 +80,9 @@ export function AppLayout({
 
   // Mobile sidebar open state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Command palette
+  const commandPalette = useCommandPalette();
 
   // Persist collapsed state
   useEffect(() => {
@@ -113,6 +113,25 @@ export function AppLayout({
     setMobileMenuOpen(false);
   }, []);
 
+  const helpFooter = sidebarFooter ?? (
+    <NavLink
+      to={HELP_NAV_ITEM.href}
+      title={sidebarCollapsed ? HELP_NAV_ITEM.label : undefined}
+      className={({ isActive }) =>
+        [
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-[#0353a4] text-white'
+            : 'text-[#003559] hover:bg-[#b9d6f2]/30',
+          sidebarCollapsed ? 'justify-center' : '',
+        ].join(' ')
+      }
+    >
+      <span className="shrink-0 w-5 h-5">{HELP_NAV_ITEM.icon}</span>
+      {!sidebarCollapsed && <span>{HELP_NAV_ITEM.label}</span>}
+    </NavLink>
+  );
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       {/* Mobile sidebar overlay */}
@@ -136,7 +155,7 @@ export function AppLayout({
           items={navItems}
           collapsed={false}
           logo={logo}
-          footer={sidebarFooter}
+          footer={helpFooter}
         />
       </div>
 
@@ -148,7 +167,7 @@ export function AppLayout({
           onCollapsedChange={handleSidebarCollapsedChange}
           logo={logo}
           logoCollapsed={logoCollapsed}
-          footer={sidebarFooter}
+          footer={helpFooter}
         />
       </div>
 
@@ -163,11 +182,10 @@ export function AppLayout({
         <Header
           title={pageTitle}
           breadcrumbs={breadcrumbs}
-          user={user}
-          onUserAction={onUserAction}
           onMobileMenuClick={handleMobileMenuClick}
           showMobileMenu={true}
           actions={headerActions}
+          onSearchClick={commandPalette.open}
         />
 
         {/* Page content */}
@@ -175,6 +193,9 @@ export function AppLayout({
           {children}
         </main>
       </div>
+
+      {/* Command Palette */}
+      <CommandPalette isOpen={commandPalette.isOpen} onClose={commandPalette.close} />
     </div>
   );
 }

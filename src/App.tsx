@@ -8,12 +8,13 @@ import { CreateCampaignPage } from './pages/CreateCampaignPage';
 import { EditCampaignPage } from './pages/EditCampaignPage';
 import { TemplateLibraryPage } from './pages/TemplateLibraryPage';
 import { MembersPage } from './pages/MembersPage';
-import { MemberImportPage } from './pages/MemberImportPage';
 import { CreateMemberPage } from './pages/CreateMemberPage';
 import { MemberDetailPage } from './pages/MemberDetailPage';
 import { DataSourcesPage } from './pages/DataSourcesPage';
 import { DataSourceNewPage } from './pages/DataSourceNewPage';
 import { SegmentsPage } from './pages/SegmentsPage';
+import { SegmentDetailPage } from './pages/SegmentDetailPage';
+import { HelpPage } from './pages/HelpPage';
 import { AdminUsersPage, AdminSettingsPage } from './pages/admin';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -106,10 +107,26 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-
-                {/* Member routes */}
                 <Route
-                  path="/members"
+                  path="/segments/new"
+                  element={
+                    <ProtectedRoute>
+                      <SegmentDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/segments/:id"
+                  element={
+                    <ProtectedRoute>
+                      <SegmentDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Audience routes (renamed from Members) */}
+                <Route
+                  path="/audience"
                   element={
                     <ProtectedRoute>
                       <MembersPage />
@@ -117,15 +134,11 @@ function App() {
                   }
                 />
                 <Route
-                  path="/members/import"
-                  element={
-                    <ProtectedRoute>
-                      <MemberImportPage />
-                    </ProtectedRoute>
-                  }
+                  path="/audience/import"
+                  element={<Navigate to="/import/new?destination=members" replace />}
                 />
                 <Route
-                  path="/members/new"
+                  path="/audience/new"
                   element={
                     <ProtectedRoute>
                       <CreateMemberPage />
@@ -133,7 +146,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/members/:id"
+                  path="/audience/:id"
                   element={
                     <ProtectedRoute>
                       <MemberDetailPage />
@@ -141,9 +154,9 @@ function App() {
                   }
                 />
 
-                {/* Data Sources routes */}
+                {/* Import routes (renamed from Data Sources) */}
                 <Route
-                  path="/data-sources"
+                  path="/import"
                   element={
                     <ProtectedRoute>
                       <DataSourcesPage />
@@ -151,13 +164,21 @@ function App() {
                   }
                 />
                 <Route
-                  path="/data-sources/new"
+                  path="/import/new"
                   element={
                     <ProtectedRoute>
                       <DataSourceNewPage />
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Redirects from old paths */}
+                <Route path="/members" element={<Navigate to="/audience" replace />} />
+                <Route path="/members/:id" element={<Navigate to="/audience" replace />} />
+                <Route path="/members/import" element={<Navigate to="/import/new?destination=members" replace />} />
+                <Route path="/members/new" element={<Navigate to="/audience/new" replace />} />
+                <Route path="/data-sources" element={<Navigate to="/import" replace />} />
+                <Route path="/data-sources/new" element={<Navigate to="/import/new" replace />} />
 
                 {/* Admin routes - require admin role */}
                 <Route
@@ -179,6 +200,16 @@ function App() {
                 <Route
                   path="/admin"
                   element={<Navigate to="/admin/users" replace />}
+                />
+
+                {/* Help route */}
+                <Route
+                  path="/help"
+                  element={
+                    <ProtectedRoute>
+                      <HelpPage />
+                    </ProtectedRoute>
+                  }
                 />
 
                 {/* Default redirect */}

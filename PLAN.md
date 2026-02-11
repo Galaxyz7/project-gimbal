@@ -2,7 +2,7 @@
 
 Internal company platform for analytics dashboards and marketing campaign management.
 
-## Current Status: ~40% Complete
+## Current Status: ~85% Complete
 
 **Completed:**
 - Authentication with PKCE, rate limiting, audit logging
@@ -10,17 +10,28 @@ Internal company platform for analytics dashboards and marketing campaign manage
 - Common UI components (Button, Input, Select, Card, Modal, Badge, etc.)
 - Layout components (AppLayout, Header, Sidebar)
 - Dashboard components (MetricCard, LineChart, BarChart, DonutChart, DataTable, DateRangePicker)
-- DashboardPage (UI complete, using mock data)
-- **CRM Module** (NEW):
+- DashboardPage connected to real CRM data with trend calculations
+- **CRM Module:**
   - Database: sites, members, membership_levels, transactions, visits, consent, automation
-  - Components: SiteList, MemberList, MemberDetail, ImportWizard (8 steps)
+  - Components: SiteList, MemberList, MemberDetail, MemberForm
   - Services: siteService, memberService, memberImportService
   - Types: Comprehensive member.ts definitions
-- Data import services (cleaningService, importTableService, scheduleService)
+- **Campaign Management:**
+  - Database: campaigns, templates, messages tables with RLS
+  - 11 UI components (CampaignList, CampaignForm, CampaignDetail, TemplateSelector, etc.)
+  - Services: campaignService, templateService, messageService, smsService, emailService
+  - Edge Functions: send-sms, send-email, process-campaign, handle-webhook
+  - React Query hooks for all CRUD operations
+- **Admin Portal:** UserList, UserForm, SettingsForm, profileService, appSettingsService
+- **Audience Segments:** SegmentBuilder, SegmentList, segmentService
+- **Analytics:** analyticsService, campaignReportService with trend calculations
+- **Data Import Services:** cleaningService, importTableService, scheduleService, dataSourceService
+- **State Management:** Zustand stores (auth, ui, crm), React Query, centralized queryKeys
+- **Testing:** 41 test files, ~78% statement coverage
 
 **In Progress:**
-- Connect dashboard to real CRM data
-- State management (Zustand stores, React Query)
+- Data import sync execution (wizard configures but doesn't sync yet)
+- UX overhaul (navigation, onboarding, campaign workflow improvements)
 
 **See [phases.md](phases.md) for detailed implementation roadmap.**
 
@@ -51,7 +62,7 @@ Internal company platform for analytics dashboards and marketing campaign manage
 **Charts:** Recharts
 **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 **Messaging:** Twilio (SMS), SendGrid (Email)
-**Testing:** Vitest + React Testing Library + Cypress
+**Testing:** Vitest + React Testing Library
 
 **Post-MVP Tech (Phase A-C):**
 - React Flow (visual builders)
@@ -104,26 +115,35 @@ Viewer: Read-only access to reports
 | 4 | sites_members | Done | Multi-site member management (CRM) |
 | 5 | member_transactions_visits | Done | LTV calculation, visit tracking (CRM) |
 | 6 | consent_automation | Done | TCPA/CAN-SPAM consent, automation triggers (CRM) |
+| 7 | campaigns | Done | Campaign management, templates, messages |
+| 8 | profiles_app_settings | Done | User profiles, app settings, API credentials |
+| 9 | fix_rls_infinite_recursion | Done | RLS policy fix |
+| 10 | audit_log_cleanup_cron | Done | Automated audit log cleanup |
+| 11 | starter_templates | Done | System template flag + seed data |
+| 12 | campaign_reporting | Done | Campaign report views and metrics |
+| 13 | audience_segments | Done | Saved audience segments with rules |
+| 14 | marketing_enhancements | Done | Campaign and marketing improvements |
+| 15 | data_import_tables | Done | Data sources, import tables, sync logs |
+| 16 | rate_limit_get_count | Done | Rate limit helper function |
 
 ### Remaining Migrations
 
-| # | Migration | Sprint | Description |
-|---|-----------|--------|-------------|
-| 7 | campaigns | 2 | Campaign management + templates |
-| 8 | messages | 3 | Message delivery tracking |
-| 9 | app_settings | 4 | Application settings, API credentials |
+| # | Migration | Description |
+|---|-----------|-------------|
+| 17 | data_source_destinations | Destination type, field mappings for unified import |
 
 ---
 
 ## Success Criteria (MVP)
 
-- [ ] Data import from CSV and PostgreSQL working
+- [x] SMS/Email campaigns can be created and sent
+- [x] Template management (CRUD + variable rendering)
+- [x] Dashboard shows CRM and campaign metrics
+- [x] Admin can manage users and settings
+- [x] TCPA/CAN-SPAM compliance enforced
+- [ ] Data import from CSV with sync execution working
 - [ ] GA4 and Meta Pixel sync operational
-- [ ] SMS/Email campaigns can be created and sent
-- [ ] Dashboard shows campaign metrics
-- [ ] Admin can manage users and settings
 - [ ] 3-5 users validated the workflow
-- [ ] TCPA/CAN-SPAM compliance enforced
 
 ---
 

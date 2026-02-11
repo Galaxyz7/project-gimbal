@@ -41,6 +41,7 @@ function transformTemplate(row: Record<string, unknown>): CampaignTemplate {
     name: row.name as string,
     description: row.description as string | null,
     templateType: row.template_type as CampaignType,
+    category: (row.category as CampaignTemplate['category']) ?? null,
     subject: row.subject as string | null,
     content: row.content as string,
     preheader: row.preheader as string | null,
@@ -61,6 +62,7 @@ function transformTemplate(row: Record<string, unknown>): CampaignTemplate {
  */
 export async function getTemplates(params?: {
   type?: CampaignType;
+  category?: string;
   search?: string;
   tags?: string[];
 }): Promise<CampaignTemplate[]> {
@@ -72,6 +74,10 @@ export async function getTemplates(params?: {
 
   if (params?.type) {
     query = query.eq('template_type', params.type);
+  }
+
+  if (params?.category) {
+    query = query.eq('category', params.category);
   }
 
   if (params?.search) {
@@ -163,6 +169,7 @@ export async function createTemplate(input: CreateTemplateInput): Promise<Campai
       name: input.name,
       description: input.description || null,
       template_type: input.templateType,
+      category: input.category || null,
       subject: input.subject || null,
       content: input.content,
       preheader: input.preheader || null,
@@ -187,6 +194,7 @@ export async function updateTemplate(id: string, input: UpdateTemplateInput): Pr
   if (input.name !== undefined) updateData.name = input.name;
   if (input.description !== undefined) updateData.description = input.description;
   if (input.templateType !== undefined) updateData.template_type = input.templateType;
+  if (input.category !== undefined) updateData.category = input.category;
   if (input.subject !== undefined) updateData.subject = input.subject;
   if (input.content !== undefined) updateData.content = input.content;
   if (input.preheader !== undefined) updateData.preheader = input.preheader;

@@ -3,7 +3,7 @@
  * Create/edit campaign with Zod validation
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,9 +14,11 @@ import { Select } from '../common/Select';
 import { Card } from '../common/Card';
 import { TemplateSelector } from './TemplateSelector';
 import { ContentEditor } from './ContentEditor';
+import { EmailPreviewModal } from './EmailPreviewModal';
 import { SiteSelector } from '../members/SiteSelector';
 import { SegmentSelector } from '../segments/SegmentSelector';
-import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/services/campaigns';
+import { useCreateCampaign, useUpdateCampaign, useCampaign, useEstimateRecipients } from '@/services/campaigns';
+import { useSegments } from '@/services/segments';
 import type { Campaign, CampaignType, CampaignTemplate } from '@/types/campaign';
 
 // =============================================================================
@@ -133,6 +135,67 @@ export function CampaignForm({
   // Watch campaign type for conditional rendering
   const watchedType = watch('campaignType');
   const watchedContent = watch('content');
+  const watchedSegmentId = watch('segmentId');
+  const watchedSiteId = watch('siteId');
+  const watchedTargetAll = watch('targetAllMembers');
+  const watchedStatuses = watch('membershipStatuses');
+
+  // Audience estimation
+  const { data: segments } = useSegments();
+  const selectedSegment = watchedSegmentId
+    ? segments?.find((s) => s.id === watchedSegmentId)
+    : null;
+
+  const { data: estimatedCount, isLoading: estimatingCount } = useEstimateRecipients({
+    siteId: watchedSiteId,
+    segmentId: watchedSegmentId,
+    targetAllMembers: watchedTargetAll,
+    membershipStatuses: watchedStatuses,
+    campaignType: watchedType,
+  });
+
+  // Email preview
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const previewTemplate = useMemo<CampaignTemplate | null>(() => {
+    if (!showEmailPreview || watchedType !== 'email') return null;
+    return {
+      id: '',
+      userId: '',
+      name: watch('name') || 'Campaign Preview',
+      description: null,
+      templateType: 'email',
+      category: null,
+      subject: watch('subject') || null,
+      content: watchedContent,
+      preheader: null,
+      tags: [],
+      isActive: true,
+      isSystem: false,
+      createdAt: '',
+      updatedAt: '',
+    };
+  }, [showEmailPreview, watchedType, watchedContent, watch]);
+
+  // Compliance checks
+  const complianceHints = useMemo(() => {
+    const hints: Array<{ type: 'info' | 'warning'; text: string }> = [];
+
+    if (watchedType === 'sms') {
+      hints.push({ type: 'info', text: 'Quiet hours will be enforced (8 AM \u2013 9 PM recipient timezone)' });
+      if (!watchedContent.toLowerCase().includes('stop') && !watchedContent.toLowerCase().includes('opt out')) {
+        hints.push({ type: 'warning', text: 'Consider adding opt-out instructions (e.g., "Reply STOP to unsubscribe")' });
+      }
+    } else if (watchedType === 'email') {
+      if (!watchedContent.includes('{{unsubscribeUrl}}') && !watchedContent.toLowerCase().includes('unsubscribe')) {
+        hints.push({ type: 'warning', text: 'Missing {{unsubscribeUrl}} \u2014 CAN-SPAM requires an unsubscribe link' });
+      }
+      if (!watchedContent.includes('{{physicalAddress}}') && !watchedContent.includes('{{companyAddress}}')) {
+        hints.push({ type: 'warning', text: 'No physical address detected \u2014 CAN-SPAM requires a postal address' });
+      }
+    }
+
+    return hints;
+  }, [watchedType, watchedContent]);
 
   // Populate form when editing
   useEffect(() => {
@@ -372,6 +435,18 @@ export function CampaignForm({
             type={watchedType}
             error={errors.content?.message}
           />
+
+          {/* Preview button (email only) */}
+          {watchedType === 'email' && watchedContent && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEmailPreview(true)}
+            >
+              Preview Email
+            </Button>
+          )}
         </div>
 
         {/* Targeting Section */}
@@ -446,7 +521,52 @@ export function CampaignForm({
               </div>
             </div>
           )}
+
+          {/* Audience size estimate */}
+          <div className="flex items-center gap-2 p-3 bg-[#b9d6f2]/20 border border-[#b9d6f2]/40 rounded-lg">
+            <svg className="w-5 h-5 text-[#006daa] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-sm font-medium text-[#003559]">
+              Estimated recipients:{' '}
+              {selectedSegment ? (
+                <span>{selectedSegment.estimatedSize.toLocaleString()}</span>
+              ) : estimatingCount ? (
+                <span className="text-gray-400">calculating...</span>
+              ) : (
+                <span>{(estimatedCount ?? 0).toLocaleString()}</span>
+              )}
+            </span>
+          </div>
         </div>
+
+        {/* Compliance Hints */}
+        {complianceHints.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-700 border-b border-[#e0e0e0] pb-2">
+              Compliance
+            </h3>
+            {complianceHints.map((hint, i) => (
+              <div
+                key={i}
+                className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+                  hint.type === 'warning'
+                    ? 'bg-[#b45309]/10 border border-[#b45309]/20 text-[#b45309]'
+                    : 'bg-[#b9d6f2]/20 border border-[#b9d6f2]/40 text-[#006daa]'
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {hint.type === 'warning' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
+                </svg>
+                <span>{hint.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Form Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t border-[#e0e0e0]">
@@ -460,6 +580,12 @@ export function CampaignForm({
           </Button>
         </div>
       </form>
+
+      {/* Email Preview Modal */}
+      <EmailPreviewModal
+        template={previewTemplate}
+        onClose={() => setShowEmailPreview(false)}
+      />
     </Card>
   );
 }

@@ -51,7 +51,7 @@ function createGroup(): SegmentRuleGroup {
 const DEPTH_COLORS = [
   'border-l-[#0353a4]',   // depth 0 — primary blue
   'border-l-[#006daa]',   // depth 1 — secondary blue
-  'border-l-[#ed6c02]',   // depth 2 — warning orange
+  'border-l-[#b45309]',   // depth 2 — warning orange
 ];
 
 // =============================================================================

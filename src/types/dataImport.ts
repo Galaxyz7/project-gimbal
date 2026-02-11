@@ -52,6 +52,9 @@ export interface DataSource {
   sync_status: SyncStatus;
   table_name: string | null;
   is_active: boolean;
+  destination_type: DestinationType;
+  field_mappings: FieldMapping[];
+  site_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -334,6 +337,9 @@ export interface CreateDataSourceRequest {
   column_config?: ColumnConfiguration;
   schedule_config?: ScheduleConfiguration;
   sync_schedule?: SyncScheduleFrequency;
+  destination_type?: DestinationType;
+  field_mappings?: FieldMapping[];
+  site_id?: string | null;
 }
 
 export interface UpdateDataSourceRequest {
@@ -344,6 +350,9 @@ export interface UpdateDataSourceRequest {
   schedule_config?: ScheduleConfiguration;
   sync_schedule?: SyncScheduleFrequency;
   is_active?: boolean;
+  destination_type?: DestinationType;
+  field_mappings?: FieldMapping[];
+  site_id?: string | null;
 }
 
 export interface TestConnectionRequest {
@@ -383,6 +392,38 @@ export function isFileType(type: DataSourceType): boolean {
 
 export function isOAuthType(type: DataSourceType): boolean {
   return ['google_analytics', 'meta_pixel', 'google_sheets'].includes(type);
+}
+
+// =============================================================================
+// Destination Types (unified import flow)
+// =============================================================================
+
+export type DestinationType = 'members' | 'transactions' | 'visits' | 'custom';
+
+export interface FieldMapping {
+  /** Source column name from the imported data */
+  sourceColumn: string;
+  /** Target field in the destination table */
+  targetField: string;
+  /** Whether this mapping is required */
+  required: boolean;
+}
+
+export interface SyncResult {
+  syncLogId: string;
+  status: 'success' | 'partial' | 'failed';
+  recordsImported: number;
+  recordsSkipped: number;
+  recordsFailed: number;
+  errors: Array<{ row: number; message: string }>;
+}
+
+export interface DestinationSchema {
+  type: DestinationType;
+  label: string;
+  description: string;
+  requiredFields: Array<{ field: string; label: string; type: ColumnType }>;
+  optionalFields: Array<{ field: string; label: string; type: ColumnType }>;
 }
 
 // =============================================================================

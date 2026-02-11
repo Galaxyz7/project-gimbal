@@ -1,15 +1,13 @@
 /**
  * Data Source Wizard
- * 7-step wizard for creating a new data source connection
+ * 5-step unified import wizard
  *
  * Steps:
- * 1. Source Type - Choose database, file, or API
- * 2. Connection - Configure credentials/upload
- * 3. Preview - View column stats and sample data
- * 4. Columns - Configure column names, types, include/exclude
- * 5. Cleaning - Set per-column cleaning rules
- * 6. Schedule - Configure sync frequency
- * 7. Review - Summary before creation
+ * 1. Source — Choose type + configure connection/upload
+ * 2. Data Type — What kind of data is this? (members, transactions, visits, custom)
+ * 3. Map & Clean — Map source columns to destination fields + preview
+ * 4. Schedule — Configure sync frequency
+ * 5. Review & Import — Summary before creation
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -21,6 +19,8 @@ import type {
   ColumnConfiguration,
   ScheduleConfiguration,
   PreviewResponse,
+  DestinationType,
+  FieldMapping,
 } from '@/types/dataImport';
 import { DEFAULT_SCHEDULE_CONFIG, DEFAULT_COLUMN_CONFIG, isDatabaseType, isFileType, isOAuthType } from '@/types/dataImport';
 import { analyzeColumns, generateDefaultColumnConfig } from '@/services/data-sources/cleaningService';
@@ -33,9 +33,8 @@ import { SourceTypeSelector } from './SourceTypeSelector';
 import { DatabaseConnector } from './DatabaseConnector';
 import { FileUploader } from './FileUploader';
 import { OAuthConnector } from './OAuthConnector';
-import { DataPreviewPanel } from './DataPreviewPanel';
-import { ColumnConfigurator } from './ColumnConfigurator';
-import { CleaningRuleEditor } from './CleaningRuleEditor';
+import { DataTypeSelector } from './DataTypeSelector';
+import { MapAndCleanStep } from './MapAndCleanStep';
 import { ScheduleConfigurator } from './ScheduleConfigurator';
 import { ReviewStep } from './ReviewStep';
 
@@ -44,28 +43,23 @@ import { ReviewStep } from './ReviewStep';
 // =============================================================================
 
 export interface DataSourceWizardProps {
+  /** Called after the data source is created */
   onComplete?: (dataSourceId: string) => void;
+  /** Called when user cancels the wizard */
   onCancel?: () => void;
+  /** Pre-select a destination type (e.g. from /import/new?destination=members) */
+  initialDestination?: DestinationType;
   className?: string;
 }
 
-type WizardStep =
-  | 'source_type'
-  | 'connection'
-  | 'preview'
-  | 'columns'
-  | 'cleaning'
-  | 'schedule'
-  | 'review';
+type WizardStep = 'source' | 'data_type' | 'map_clean' | 'schedule' | 'review';
 
 const STEPS: Array<{ id: WizardStep; title: string; description: string }> = [
-  { id: 'source_type', title: 'Source Type', description: 'Choose data source' },
-  { id: 'connection', title: 'Connection', description: 'Configure connection' },
-  { id: 'preview', title: 'Preview', description: 'Review data' },
-  { id: 'columns', title: 'Columns', description: 'Configure columns' },
-  { id: 'cleaning', title: 'Cleaning', description: 'Data cleaning rules' },
+  { id: 'source', title: 'Source', description: 'Choose type & connect' },
+  { id: 'data_type', title: 'Data Type', description: 'What kind of data?' },
+  { id: 'map_clean', title: 'Map & Clean', description: 'Map fields' },
   { id: 'schedule', title: 'Schedule', description: 'Sync schedule' },
-  { id: 'review', title: 'Review', description: 'Confirm and create' },
+  { id: 'review', title: 'Review', description: 'Confirm & import' },
 ];
 
 interface WizardState {
@@ -77,18 +71,9 @@ interface WizardState {
   preview: PreviewResponse | null;
   columns: ColumnConfig[];
   scheduleConfig: ScheduleConfiguration;
+  destinationType: DestinationType | null;
+  fieldMappings: FieldMapping[];
 }
-
-const INITIAL_STATE: WizardState = {
-  sourceType: null,
-  name: '',
-  credentials: {},
-  config: {},
-  file: null,
-  preview: null,
-  columns: [],
-  scheduleConfig: { ...DEFAULT_SCHEDULE_CONFIG },
-};
 
 // =============================================================================
 // Icons
@@ -122,15 +107,34 @@ function ArrowRightIcon() {
 // Component
 // =============================================================================
 
-export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataSourceWizardProps) {
-  const [currentStep, setCurrentStep] = useState<WizardStep>('source_type');
+export function DataSourceWizard({
+  onComplete,
+  onCancel,
+  initialDestination,
+  className = '',
+}: DataSourceWizardProps) {
+  const [currentStep, setCurrentStep] = useState<WizardStep>('source');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [state, setState] = useState<WizardState>(INITIAL_STATE);
+  const [state, setState] = useState<WizardState>({
+    sourceType: null,
+    name: '',
+    credentials: {},
+    config: {},
+    file: null,
+    preview: null,
+    columns: [],
+    scheduleConfig: { ...DEFAULT_SCHEDULE_CONFIG },
+    destinationType: initialDestination ?? null,
+    fieldMappings: [],
+  });
 
   const currentStepIndex = STEPS.findIndex((s) => s.id === currentStep);
 
+  // ---------------------------------------------------------------------------
   // Navigation
+  // ---------------------------------------------------------------------------
+
   const goToStep = useCallback((step: WizardStep) => {
     setError(null);
     setCurrentStep(step);
@@ -150,12 +154,14 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
     }
   }, [currentStepIndex, goToStep]);
 
-  // Step 1: Source type selection
+  // ---------------------------------------------------------------------------
+  // Step 1: Source — type selection + connection
+  // ---------------------------------------------------------------------------
+
   const handleSourceTypeSelect = useCallback((type: DataSourceType) => {
     setState((prev) => ({ ...prev, sourceType: type }));
   }, []);
 
-  // Step 2: Connection
   const handleNameChange = useCallback((name: string) => {
     setState((prev) => ({ ...prev, name }));
   }, []);
@@ -171,7 +177,7 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
   const handleFileSelected = useCallback((file: File) => {
     setState((prev) => ({ ...prev, file }));
 
-    // Parse CSV for preview (simulate reading file)
+    // Parse CSV for preview
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
@@ -208,17 +214,34 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
     }));
   }, []);
 
-  // Step 4: Columns
-  const handleColumnsChange = useCallback((columns: ColumnConfig[]) => {
-    setState((prev) => ({ ...prev, columns }));
+  // ---------------------------------------------------------------------------
+  // Step 2: Data type
+  // ---------------------------------------------------------------------------
+
+  const handleDestinationTypeChange = useCallback((type: DestinationType) => {
+    setState((prev) => ({ ...prev, destinationType: type, fieldMappings: [] }));
   }, []);
 
-  // Step 6: Schedule
+  // ---------------------------------------------------------------------------
+  // Step 3: Map & clean
+  // ---------------------------------------------------------------------------
+
+  const handleFieldMappingsChange = useCallback((fieldMappings: FieldMapping[]) => {
+    setState((prev) => ({ ...prev, fieldMappings }));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Step 4: Schedule
+  // ---------------------------------------------------------------------------
+
   const handleScheduleChange = useCallback((scheduleConfig: ScheduleConfiguration) => {
     setState((prev) => ({ ...prev, scheduleConfig }));
   }, []);
 
-  // Create data source
+  // ---------------------------------------------------------------------------
+  // Step 5: Create
+  // ---------------------------------------------------------------------------
+
   const handleCreate = useCallback(async () => {
     if (!state.sourceType || !state.name) {
       setError('Missing required fields');
@@ -242,6 +265,8 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
         column_config: columnConfig,
         schedule_config: state.scheduleConfig,
         sync_schedule: state.scheduleConfig.frequency,
+        destination_type: state.destinationType ?? 'custom',
+        field_mappings: state.fieldMappings,
       });
 
       onComplete?.(created.id);
@@ -252,19 +277,18 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
     }
   }, [state, onComplete]);
 
+  // ---------------------------------------------------------------------------
   // Validation
+  // ---------------------------------------------------------------------------
+
   const canProceed = useMemo((): boolean => {
     switch (currentStep) {
-      case 'source_type':
-        return !!state.sourceType;
-      case 'connection':
-        return !!state.name.trim();
-      case 'preview':
-        return true; // Preview is informational
-      case 'columns':
-        return state.columns.some((c) => c.included);
-      case 'cleaning':
-        return true; // Cleaning rules are optional
+      case 'source':
+        return !!state.sourceType && !!state.name.trim();
+      case 'data_type':
+        return !!state.destinationType;
+      case 'map_clean':
+        return true; // Mapping is informational; required-field warnings are shown inline
       case 'schedule':
         return true;
       case 'review':
@@ -274,7 +298,19 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
     }
   }, [currentStep, state]);
 
+  // ---------------------------------------------------------------------------
+  // Column names for auto-detection
+  // ---------------------------------------------------------------------------
+
+  const columnNames = useMemo(
+    () => state.preview?.columns.map((c) => c.name) ?? [],
+    [state.preview]
+  );
+
+  // ---------------------------------------------------------------------------
   // Step indicator
+  // ---------------------------------------------------------------------------
+
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-2 mb-6">
       {STEPS.map((step, index) => {
@@ -313,81 +349,72 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
     </div>
   );
 
+  // ---------------------------------------------------------------------------
   // Step content
+  // ---------------------------------------------------------------------------
+
   const renderStepContent = () => {
     switch (currentStep) {
-      case 'source_type':
+      case 'source':
         return (
-          <SourceTypeSelector
-            selectedType={state.sourceType}
-            onSelect={handleSourceTypeSelect}
+          <div className="space-y-6">
+            <SourceTypeSelector
+              selectedType={state.sourceType}
+              onSelect={handleSourceTypeSelect}
+            />
+
+            {/* Connection form appears inline after type selection */}
+            {state.sourceType && isDatabaseType(state.sourceType) && (
+              <DatabaseConnector
+                sourceType={state.sourceType}
+                name={state.name}
+                credentials={state.credentials}
+                config={state.config}
+                onNameChange={handleNameChange}
+                onCredentialsChange={handleCredentialsChange}
+                onConfigChange={handleConfigChange}
+              />
+            )}
+
+            {state.sourceType && isOAuthType(state.sourceType) && (
+              <OAuthConnector
+                sourceType={state.sourceType as 'google_analytics' | 'meta_pixel' | 'google_sheets'}
+                name={state.name}
+                onNameChange={handleNameChange}
+              />
+            )}
+
+            {state.sourceType && isFileType(state.sourceType) && (
+              <FileUploader
+                sourceType={state.sourceType}
+                name={state.name}
+                onNameChange={handleNameChange}
+                onFileSelected={handleFileSelected}
+                onUrlSet={handleUrlSet}
+                loading={loading}
+                error={error ?? undefined}
+              />
+            )}
+          </div>
+        );
+
+      case 'data_type':
+        return (
+          <DataTypeSelector
+            value={state.destinationType}
+            onChange={handleDestinationTypeChange}
+            columnNames={columnNames}
           />
         );
 
-      case 'connection':
-        if (!state.sourceType) return null;
-
-        if (isDatabaseType(state.sourceType)) {
-          return (
-            <DatabaseConnector
-              sourceType={state.sourceType}
-              name={state.name}
-              credentials={state.credentials}
-              config={state.config}
-              onNameChange={handleNameChange}
-              onCredentialsChange={handleCredentialsChange}
-              onConfigChange={handleConfigChange}
-            />
-          );
-        }
-
-        if (isOAuthType(state.sourceType)) {
-          return (
-            <OAuthConnector
-              sourceType={state.sourceType as 'google_analytics' | 'meta_pixel' | 'google_sheets'}
-              name={state.name}
-              onNameChange={handleNameChange}
-            />
-          );
-        }
-
-        if (isFileType(state.sourceType)) {
-          return (
-            <FileUploader
-              sourceType={state.sourceType}
-              name={state.name}
-              onNameChange={handleNameChange}
-              onFileSelected={handleFileSelected}
-              onUrlSet={handleUrlSet}
-              loading={loading}
-              error={error ?? undefined}
-            />
-          );
-        }
-
-        return null;
-
-      case 'preview':
+      case 'map_clean':
         return (
-          <DataPreviewPanel
-            preview={state.preview}
-            loading={loading}
-          />
-        );
-
-      case 'columns':
-        return (
-          <ColumnConfigurator
-            columns={state.columns}
-            onChange={handleColumnsChange}
-          />
-        );
-
-      case 'cleaning':
-        return (
-          <CleaningRuleEditor
-            columns={state.columns}
-            onChange={handleColumnsChange}
+          <MapAndCleanStep
+            destinationType={state.destinationType ?? 'custom'}
+            columns={state.preview?.columns ?? []}
+            sampleRows={state.preview?.rows ?? []}
+            fieldMappings={state.fieldMappings}
+            onFieldMappingsChange={handleFieldMappingsChange}
           />
         );
 
@@ -408,6 +435,8 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
             credentials={state.credentials}
             columns={state.columns}
             scheduleConfig={state.scheduleConfig}
+            destinationType={state.destinationType}
+            fieldMappings={state.fieldMappings}
           />
         );
 
@@ -428,8 +457,8 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
         }
       >
         <div className="flex items-center gap-3">
-          <span className="text-lg font-semibold">New Data Source</span>
-          {currentStep !== 'source_type' && (
+          <span className="text-lg font-semibold">New Import</span>
+          {currentStep !== 'source' && (
             <Badge variant="secondary" size="sm">
               Step {currentStepIndex + 1} of {STEPS.length}: {STEPS[currentStepIndex].title}
             </Badge>
@@ -440,7 +469,7 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
       <div className="p-6">
         {renderStepIndicator()}
 
-        {error && currentStep !== 'connection' && (
+        {error && currentStep !== 'source' && (
           <div className="mb-6 p-4 bg-[#d32f2f]/10 border border-[#d32f2f]/20 rounded-lg text-[#d32f2f]">
             {error}
           </div>
@@ -463,7 +492,7 @@ export function DataSourceWizard({ onComplete, onCancel, className = '' }: DataS
         <div className="flex-1" />
         {currentStep === 'review' ? (
           <Button onClick={handleCreate} loading={loading} disabled={!canProceed}>
-            Create Data Source
+            Import Now
           </Button>
         ) : (
           <Button

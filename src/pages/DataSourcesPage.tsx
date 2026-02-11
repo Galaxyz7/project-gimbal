@@ -9,10 +9,12 @@ import { supabase } from '../lib/supabase';
 import { AppLayout } from '../components/layout';
 import { EmptyState } from '../components/common/EmptyState';
 import { Button } from '../components/common/Button';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { PageHeader } from '../components/common/PageHeader';
 import { PlusIcon } from '../components/common/icons';
 import { Skeleton } from '../components/Skeleton';
 import { DataSourceCard } from '../components/data-sources';
+import { syncService } from '../services/data-sources';
 import { useNavigation } from '../hooks/useNavigation';
 import type { DataSource } from '../types/dataImport';
 
@@ -26,6 +28,9 @@ export const DataSourcesPage = memo(function DataSourcesPage() {
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const fetchDataSources = useCallback(async () => {
     setLoading(true);
@@ -49,25 +54,58 @@ export const DataSourcesPage = memo(function DataSourcesPage() {
     fetchDataSources();
   }, [fetchDataSources]);
 
-  const handleDelete = useCallback(async (id: string) => {
+  const handleSync = useCallback(async (id: string) => {
+    const ds = dataSources.find((d) => d.id === id);
+    if (!ds) return;
+
+    setSyncingId(id);
+    setDataSources((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, sync_status: 'syncing' as const } : d))
+    );
+
+    try {
+      await syncService.executeSyncPipeline({
+        dataSourceId: ds.id,
+        rawRows: [], // Re-sync fetches from source; empty triggers status update
+        columnConfig: ds.column_config,
+        fieldMappings: ds.field_mappings ?? [],
+        destinationType: ds.destination_type ?? 'custom',
+        siteId: ds.site_id,
+        tableName: ds.table_name ?? undefined,
+      });
+      await fetchDataSources();
+    } catch {
+      setDataSources((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, sync_status: 'failed' as const } : d))
+      );
+    } finally {
+      setSyncingId(null);
+    }
+  }, [dataSources, fetchDataSources]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteId) return;
+    setDeleting(true);
     const { error: deleteError } = await supabase
       .from('data_sources')
       .delete()
-      .eq('id', id);
+      .eq('id', deleteId);
 
     if (!deleteError) {
-      setDataSources((prev) => prev.filter((ds) => ds.id !== id));
+      setDataSources((prev) => prev.filter((ds) => ds.id !== deleteId));
     }
-  }, []);
+    setDeleting(false);
+    setDeleteId(null);
+  }, [deleteId]);
 
   return (
     <AppLayout navItems={navItems}>
       <PageHeader
-        title="Data Sources"
+        title="Import"
         description="Connect and manage external data sources"
         actions={
-          <Button onClick={() => navigate('/data-sources/new')} leftIcon={<PlusIcon />}>
-            New Data Source
+          <Button onClick={() => navigate('/import/new')} leftIcon={<PlusIcon />}>
+            New Import
           </Button>
         }
       />
@@ -99,7 +137,7 @@ export const DataSourcesPage = memo(function DataSourcesPage() {
             description="Import CSV files, connect databases, or link analytics platforms to bring data into Gimbal."
             action={{
               label: 'New Data Source',
-              onClick: () => navigate('/data-sources/new'),
+              onClick: () => navigate('/import/new'),
             }}
           />
         </div>
@@ -109,11 +147,24 @@ export const DataSourcesPage = memo(function DataSourcesPage() {
             <DataSourceCard
               key={ds.id}
               dataSource={ds}
-              onDelete={handleDelete}
+              onDelete={setDeleteId}
+              onSync={handleSync}
+              syncing={syncingId === ds.id}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Data Source"
+        message="Are you sure you want to delete this data source? All imported data and sync history will be permanently removed."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleting}
+      />
     </AppLayout>
   );
 });

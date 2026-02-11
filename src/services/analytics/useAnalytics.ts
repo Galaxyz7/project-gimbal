@@ -113,3 +113,15 @@ export function useEngagementTrends(dateRange: DateRange, siteId?: string) {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// =============================================================================
+// Follow-Up Members Hook
+// =============================================================================
+
+export function useFollowUpMembers(limit: number = 5, siteId?: string) {
+  return useQuery({
+    queryKey: [...analyticsKeys.memberMetrics(siteId), 'followUp', limit],
+    queryFn: () => analyticsService.getFollowUpMembers(limit, siteId),
+    staleTime: 5 * 60 * 1000,
+  });
+}

@@ -33,7 +33,7 @@ function MetricCard({ label, value, subValue, color = 'default' }: MetricCardPro
   const colorClasses = {
     default: 'text-[#003559]',
     success: 'text-[#2e7d32]',
-    warning: 'text-[#ed6c02]',
+    warning: 'text-[#b45309]',
     danger: 'text-[#d32f2f]',
   };
 

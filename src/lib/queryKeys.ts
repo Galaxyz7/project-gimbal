@@ -55,6 +55,8 @@ export const memberKeys = {
     [...memberKeys.all, 'ltv', memberId] as const,
   search: (query: string, siteId?: string) =>
     [...memberKeys.all, 'search', { query, siteId }] as const,
+  notes: (memberId: string) =>
+    [...memberKeys.all, 'notes', memberId] as const,
 };
 
 // =============================================================================
@@ -110,6 +112,7 @@ export const campaignKeys = {
   topEngaged: (id: string) => [...campaignKeys.all, 'topEngaged', id] as const,
   errorSummary: (id: string) => [...campaignKeys.all, 'errorSummary', id] as const,
   deviceBreakdown: (id: string) => [...campaignKeys.all, 'deviceBreakdown', id] as const,
+  recipientEstimate: (params: unknown) => [...campaignKeys.all, 'recipientEstimate', params] as const,
 };
 
 // =============================================================================
@@ -122,6 +125,7 @@ export const segmentKeys = {
   details: () => [...segmentKeys.all, 'detail'] as const,
   detail: (id: string) => [...segmentKeys.details(), id] as const,
   estimate: (rules: unknown) => [...segmentKeys.all, 'estimate', rules] as const,
+  overlap: (idA: string, idB: string) => [...segmentKeys.all, 'overlap', idA, idB] as const,
 };
 
 // =============================================================================

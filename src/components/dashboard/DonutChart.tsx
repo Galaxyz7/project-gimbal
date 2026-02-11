@@ -47,7 +47,7 @@ const DEFAULT_COLORS = [
   '#0353a4', // Primary
   '#006daa', // Secondary
   '#2e7d32', // Success
-  '#ed6c02', // Warning
+  '#b45309', // Warning
   '#d32f2f', // Danger
   '#003559', // Dark
   '#b9d6f2', // Light

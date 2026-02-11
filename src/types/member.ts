@@ -567,6 +567,36 @@ export interface AutomationExecution {
 }
 
 // =============================================================================
+// Note Types
+// =============================================================================
+
+export type NoteType = 'note' | 'call' | 'meeting' | 'email_log' | 'follow_up';
+
+export interface MemberNote {
+  id: string;
+  userId: string;
+  memberId: string;
+  noteType: NoteType;
+  content: string;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateNoteInput {
+  memberId: string;
+  noteType?: NoteType;
+  content: string;
+  isPinned?: boolean;
+}
+
+export interface UpdateNoteInput {
+  noteType?: NoteType;
+  content?: string;
+  isPinned?: boolean;
+}
+
+// =============================================================================
 // Import Types (extends dataImport.ts)
 // =============================================================================
 

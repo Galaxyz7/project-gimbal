@@ -3,7 +3,7 @@
  * Form for viewing and editing user profiles
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ import {
 } from '@/hooks/useProfile';
 import { Card, CardHeader } from '../common/Card';
 import { Button } from '../common/Button';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Input } from '../common/Input';
 import { Select } from '../common/Select';
 import { RoleBadge } from './RoleBadge';
@@ -91,6 +92,7 @@ export function UserForm({
   const updateRole = useUpdateUserRole();
   const deactivateUser = useDeactivateUser();
   const reactivateUser = useReactivateUser();
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
 
   const {
     register,
@@ -163,6 +165,8 @@ export function UserForm({
       }
     } catch (err) {
       console.error('Failed to toggle user status:', err);
+    } finally {
+      setShowStatusConfirm(false);
     }
   };
 
@@ -337,7 +341,7 @@ export function UserForm({
               <Button
                 type="button"
                 variant={user.isActive ? 'danger' : 'primary'}
-                onClick={handleToggleStatus}
+                onClick={() => setShowStatusConfirm(true)}
                 loading={deactivateUser.isPending || reactivateUser.isPending}
               >
                 {user.isActive ? 'Deactivate User' : 'Reactivate User'}
@@ -362,6 +366,23 @@ export function UserForm({
           </Button>
         </div>
       </form>
+
+      {user && (
+        <ConfirmDialog
+          isOpen={showStatusConfirm}
+          onClose={() => setShowStatusConfirm(false)}
+          onConfirm={handleToggleStatus}
+          title={user.isActive ? 'Deactivate User' : 'Reactivate User'}
+          message={
+            user.isActive
+              ? `Are you sure you want to deactivate "${user.displayName || user.email}"? They will no longer be able to log in.`
+              : `Are you sure you want to reactivate "${user.displayName || user.email}"? They will be able to log in again.`
+          }
+          confirmLabel={user.isActive ? 'Deactivate' : 'Reactivate'}
+          confirmVariant={user.isActive ? 'danger' : 'primary'}
+          loading={deactivateUser.isPending || reactivateUser.isPending}
+        />
+      )}
     </Card>
   );
 }

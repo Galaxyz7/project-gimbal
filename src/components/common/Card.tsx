@@ -109,7 +109,7 @@ export function Card({
     >
       {header}
       <div
-        className={[paddingStyles[padding], fullHeight ? 'flex-1' : '']
+        className={[paddingStyles[padding], fullHeight ? 'flex-1 flex flex-col' : '']
           .filter(Boolean)
           .join(' ')}
       >

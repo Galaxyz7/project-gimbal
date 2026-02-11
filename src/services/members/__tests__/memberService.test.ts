@@ -55,7 +55,7 @@ const { mockSingle, mockQueryChain, mockRpc, mockGetUser } = vi.hoisted(() => {
   return { mockSingle, mockQueryChain, mockRpc, mockGetUser };
 });
 
-const resolvableChain = (result: { data: unknown; error: unknown }) => {
+const resolvableChain = (result: { data: unknown; error: unknown; count?: number | null }) => {
   Object.defineProperty(mockQueryChain, 'then', {
     value: vi.fn((resolve: (val: unknown) => void) => resolve(result)),
     writable: true,
@@ -226,20 +226,25 @@ describe('memberService', () => {
   // ---------------------------------------------------------------------------
 
   describe('searchMembers', () => {
-    it('should call RPC with search params', async () => {
+    it('should call RPC with search params and return members with count', async () => {
+      // Count query resolves via resolvableChain (supabase.from())
+      resolvableChain({ data: null, error: null, count: 1 });
+      // Data query resolves via mockRpc (supabase.rpc())
       mockRpc.mockResolvedValue({
         data: [{ id: TEST_IDS.memberId, first_name: 'John', last_name: 'Doe', email: 'john@example.com', phone: null, membership_status: 'active', membership_level_name: 'Gold', lifetime_value: 750, total_visits: 15, last_visit_at: null, site_name: 'Test Gym', created_at: '2025-01-01' }],
         error: null,
       });
       const result = await searchMembers({ searchTerm: 'John' });
-      expect(result).toHaveLength(1);
-      expect(result[0].firstName).toBe('John');
+      expect(result.members).toHaveLength(1);
+      expect(result.members[0].firstName).toBe('John');
+      expect(result.totalCount).toBe(1);
       expect(mockRpc).toHaveBeenCalledWith('search_members', expect.objectContaining({
         p_search_term: 'John',
       }));
     });
 
     it('should throw on RPC error', async () => {
+      resolvableChain({ data: null, error: null, count: 0 });
       mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
       await expect(searchMembers({})).rejects.toThrow('Failed to search members');
     });

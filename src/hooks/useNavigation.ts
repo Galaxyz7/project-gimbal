@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { NAV_ITEMS, type NavItemConfig } from '@/constants/navigation';
+import { NAV_ITEMS, HELP_NAV_ITEM, type NavItemConfig } from '@/constants/navigation';
 import { useCurrentRole } from './useProfile';
 import { hasMinimumRole, type UserRole } from '@/types/admin';
 import type { NavItem } from '@/components/layout/Sidebar';
@@ -60,9 +60,18 @@ export function useNavigation() {
     [currentRole]
   );
 
+  const helpItem: NavItem = {
+    id: HELP_NAV_ITEM.id,
+    label: HELP_NAV_ITEM.label,
+    href: HELP_NAV_ITEM.href,
+    icon: HELP_NAV_ITEM.icon,
+  };
+
   return {
     /** Filtered navigation items based on user role */
     navItems: filteredNavItems,
+    /** Help nav item for sidebar footer */
+    helpItem,
     /** Whether the role is still loading */
     isLoading,
   };

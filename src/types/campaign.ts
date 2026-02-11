@@ -86,9 +86,27 @@ export interface CampaignSearchParams {
   status?: CampaignStatus;
   campaignType?: CampaignType;
   searchTerm?: string;
+  dateFrom?: string;
+  dateTo?: string;
   limit?: number;
   offset?: number;
 }
+
+// =============================================================================
+// Template Categories
+// =============================================================================
+
+export type TemplateCategory = 'promotional' | 'transactional' | 'onboarding' | 'retention' | 'event' | 'newsletter' | 'general';
+
+export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  promotional: 'Promotional',
+  transactional: 'Transactional',
+  onboarding: 'Onboarding',
+  retention: 'Retention',
+  event: 'Event',
+  newsletter: 'Newsletter',
+  general: 'General',
+};
 
 // =============================================================================
 // Campaign Metrics Types
@@ -120,6 +138,7 @@ export interface CampaignTemplate {
   name: string;
   description: string | null;
   templateType: CampaignType;
+  category: TemplateCategory | null;
   subject: string | null;
   content: string;
   preheader: string | null;
@@ -134,6 +153,7 @@ export interface CreateTemplateInput {
   name: string;
   description?: string | null;
   templateType: CampaignType;
+  category?: TemplateCategory | null;
   subject?: string | null;
   content: string;
   preheader?: string | null;
@@ -185,6 +205,20 @@ export interface CampaignMessageWithMember extends CampaignMessage {
     email: string | null;
     phone: string | null;
   };
+}
+
+export interface MemberCampaignActivity {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  campaignType: CampaignType;
+  status: MessageStatus;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  openedAt: string | null;
+  clickedAt: string | null;
+  failedAt: string | null;
+  queuedAt: string;
 }
 
 // =============================================================================

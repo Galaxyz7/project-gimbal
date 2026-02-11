@@ -81,7 +81,7 @@ export function SmsCharacterCounter({ content, className = '' }: SmsCharacterCou
   const getStatusColor = () => {
     if (segments === 0) return 'text-gray-400';
     if (segments === 1) return 'text-[#2e7d32]';
-    if (segments <= 3) return 'text-[#ed6c02]';
+    if (segments <= 3) return 'text-[#b45309]';
     return 'text-[#d32f2f]';
   };
 
@@ -96,7 +96,7 @@ export function SmsCharacterCounter({ content, className = '' }: SmsCharacterCou
       {charCount > 0 && (
         <>
           <span className="text-gray-300">|</span>
-          <span className={segments > 1 ? 'text-[#ed6c02]' : 'text-gray-500'}>
+          <span className={segments > 1 ? 'text-[#b45309]' : 'text-gray-500'}>
             {segments} {segments === 1 ? 'segment' : 'segments'}
           </span>
         </>
@@ -106,7 +106,7 @@ export function SmsCharacterCounter({ content, className = '' }: SmsCharacterCou
       {isUnicode && (
         <>
           <span className="text-gray-300">|</span>
-          <span className="text-[#ed6c02]" title="Message contains special characters">
+          <span className="text-[#b45309]" title="Message contains special characters">
             Unicode
           </span>
         </>

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   Campaign,
   CampaignWithDetails,
+  CampaignTemplate,
   CreateCampaignInput,
   UpdateCampaignInput,
   CampaignSearchParams,
@@ -84,6 +85,7 @@ function transformCampaignWithDetails(row: Record<string, unknown>): CampaignWit
       name: template.name as string,
       description: template.description as string | null,
       templateType: template.template_type as Campaign['campaignType'],
+      category: (template.category as CampaignTemplate['category']) ?? null,
       subject: template.subject as string | null,
       content: template.content as string,
       preheader: template.preheader as string | null,
@@ -114,43 +116,68 @@ function transformCampaignWithDetails(row: Record<string, unknown>): CampaignWit
 /**
  * Get all campaigns with optional filters
  */
-export async function getCampaigns(params?: CampaignSearchParams): Promise<Campaign[]> {
-  let query = supabase
+export async function getCampaigns(params?: CampaignSearchParams): Promise<{ campaigns: Campaign[]; totalCount: number }> {
+  // Build count query in parallel
+  let countQuery = supabase
+    .from('campaigns')
+    .select('*', { count: 'exact', head: true });
+
+  let dataQuery = supabase
     .from('campaigns')
     .select('*')
     .order('created_at', { ascending: false });
 
   if (params?.siteId) {
-    query = query.eq('site_id', params.siteId);
+    countQuery = countQuery.eq('site_id', params.siteId);
+    dataQuery = dataQuery.eq('site_id', params.siteId);
   }
 
   if (params?.status) {
-    query = query.eq('status', params.status);
+    countQuery = countQuery.eq('status', params.status);
+    dataQuery = dataQuery.eq('status', params.status);
   }
 
   if (params?.campaignType) {
-    query = query.eq('campaign_type', params.campaignType);
+    countQuery = countQuery.eq('campaign_type', params.campaignType);
+    dataQuery = dataQuery.eq('campaign_type', params.campaignType);
   }
 
   if (params?.searchTerm) {
-    query = query.ilike('name', `%${params.searchTerm}%`);
+    countQuery = countQuery.ilike('name', `%${params.searchTerm}%`);
+    dataQuery = dataQuery.ilike('name', `%${params.searchTerm}%`);
+  }
+
+  if (params?.dateFrom) {
+    countQuery = countQuery.gte('scheduled_at', params.dateFrom);
+    dataQuery = dataQuery.gte('scheduled_at', params.dateFrom);
+  }
+
+  if (params?.dateTo) {
+    countQuery = countQuery.lte('scheduled_at', params.dateTo);
+    dataQuery = dataQuery.lte('scheduled_at', params.dateTo);
   }
 
   if (params?.limit) {
-    query = query.limit(params.limit);
+    dataQuery = dataQuery.limit(params.limit);
   }
 
   if (params?.offset) {
-    query = query.range(params.offset, params.offset + (params.limit || 50) - 1);
+    dataQuery = dataQuery.range(params.offset, params.offset + (params.limit || 50) - 1);
   }
 
-  const { data, error } = await query;
+  const [{ count, error: countError }, { data, error }] = await Promise.all([countQuery, dataQuery]);
 
   if (error) {
     throw CampaignServiceError('Failed to fetch campaigns', error);
   }
+  if (countError) {
+    throw CampaignServiceError('Failed to count campaigns', countError);
+  }
 
-  return (data || []).map(transformCampaign);
+  return {
+    campaigns: (data || []).map(transformCampaign),
+    totalCount: count ?? 0,
+  };
 }
 
 /**
@@ -383,6 +410,80 @@ export async function updateCampaignStats(campaignId: string): Promise<void> {
 }
 
 // =============================================================================
+// Audience Estimation
+// =============================================================================
+
+export interface RecipientEstimateParams {
+  siteId?: string | null;
+  segmentId?: string | null;
+  targetAllMembers?: boolean;
+  membershipStatuses?: string[];
+  campaignType?: 'sms' | 'email';
+}
+
+/**
+ * Estimate recipient count based on targeting criteria.
+ * This is a rough estimate — actual send-time filtering adds consent/eligibility checks.
+ */
+export async function estimateRecipientCount(params: RecipientEstimateParams): Promise<number> {
+  let query = supabase
+    .from('members')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  if (params.siteId) {
+    query = query.eq('site_id', params.siteId);
+  }
+
+  if (!params.targetAllMembers && params.membershipStatuses && params.membershipStatuses.length > 0) {
+    query = query.in('membership_status', params.membershipStatuses);
+  }
+
+  // Filter by channel eligibility
+  if (params.campaignType === 'sms') {
+    query = query.not('phone', 'is', null);
+  } else if (params.campaignType === 'email') {
+    query = query.not('email', 'is', null);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    throw CampaignServiceError('Failed to estimate recipients', error);
+  }
+
+  return count ?? 0;
+}
+
+// =============================================================================
+// Campaign Duplication
+// =============================================================================
+
+/**
+ * Duplicate a campaign. Creates a copy as DRAFT with " (Copy)" appended to the name.
+ */
+export async function duplicateCampaign(campaignId: string): Promise<Campaign> {
+  const source = await getCampaignById(campaignId);
+  if (!source) throw CampaignServiceError('Campaign not found');
+
+  return createCampaign({
+    name: `${source.name} (Copy)`,
+    description: source.description,
+    campaignType: source.campaignType,
+    siteId: source.siteId,
+    templateId: source.templateId,
+    segmentId: source.segmentId,
+    subject: source.subject,
+    content: source.content,
+    targetAllMembers: source.targetAllMembers,
+    membershipLevelIds: source.membershipLevelIds,
+    membershipStatuses: source.membershipStatuses,
+    requiredTags: source.requiredTags,
+    excludedTags: source.excludedTags,
+  });
+}
+
+// =============================================================================
 // Export Service Object
 // =============================================================================
 
@@ -399,6 +500,8 @@ export const campaignService = {
   cancelCampaign,
   queueCampaignMessages,
   updateCampaignStats,
+  estimateRecipientCount,
+  duplicateCampaign,
 };
 
 export default campaignService;

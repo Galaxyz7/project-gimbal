@@ -35,7 +35,7 @@ const statusColors: Record<NonNullable<AvatarProps['status']>, string> = {
   online: 'bg-[#2e7d32]',
   offline: 'bg-gray-400',
   busy: 'bg-[#d32f2f]',
-  away: 'bg-[#ed6c02]',
+  away: 'bg-[#b45309]',
 };
 
 // =============================================================================
@@ -56,7 +56,7 @@ function getColorFromName(name: string): string {
     'bg-[#006daa]',
     'bg-[#003559]',
     'bg-[#2e7d32]',
-    'bg-[#ed6c02]',
+    'bg-[#b45309]',
     'bg-[#d32f2f]',
   ];
   let hash = 0;

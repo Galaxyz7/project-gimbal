@@ -29,7 +29,11 @@
       "Bash([ -f \"$dir/index.ts\" ])",
       "Bash(then if ! grep -q \"^export\" \"$file\")",
       "Bash(then echo \"Missing export: $file\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -NoProfile -Command:*)",
+      "Bash(npx -y replace-in-files-cli:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

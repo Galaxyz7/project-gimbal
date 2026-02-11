@@ -26,7 +26,7 @@ npm run lint         # ESLint
 **Charts:** Recharts
 **Backend:** Supabase (PostgreSQL + Auth + Storage + Edge Functions)
 **Messaging:** Twilio (SMS), SendGrid (Email)
-**Testing:** Vitest + React Testing Library (unit), Cypress (E2E), MSW (mocking)
+**Testing:** Vitest + React Testing Library (unit), MSW (mocking)
 
 ### Future Tech (Post-MVP)
 - **Visual Builders:** React Flow (Phase A)
@@ -157,7 +157,6 @@ Roles: Admin > User > Viewer (3 tiers for MVP)
 
 - **Coverage:** 70% overall minimum, 90% critical paths
 - **Unit tests:** In `__tests__/` folders colocated with source
-- **E2E tests:** In `cypress/e2e/` for user workflows
 - **Mocking:** MSW for API, never mock implementation details
 - **Pattern:** describe/it/expect with clear test names
 
@@ -189,7 +188,7 @@ Dark:       #003559    (headings, emphasis)
 Light:      #b9d6f2    (backgrounds, highlights)
 Error:      #d32f2f    (errors, destructive actions)
 Success:    #2e7d32    (success states)
-Warning:    #ed6c02    (warnings)
+Warning:    #b45309    (warnings)
 Background: #f5f5f5    (page backgrounds)
 Border:     #e0e0e0    (inputs, cards)
 ```

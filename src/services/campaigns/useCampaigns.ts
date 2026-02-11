@@ -24,12 +24,13 @@ import type {
 // =============================================================================
 
 /**
- * Fetch campaigns list
+ * Fetch campaigns list with total count
  */
 export function useCampaigns(filters?: CampaignSearchParams) {
   return useQuery({
     queryKey: campaignKeys.list(filters),
     queryFn: () => campaignService.getCampaigns(filters),
+    select: (result) => result,
   });
 }
 
@@ -74,6 +75,20 @@ export function useCampaignMessages(id: string, params?: { status?: MessageStatu
     queryKey: campaignKeys.messages(id),
     queryFn: () => messageService.getCampaignMessages(id, params),
     enabled: !!id,
+  });
+}
+
+/**
+ * Duplicate a campaign (creates a DRAFT copy)
+ */
+export function useDuplicateCampaign() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (campaignId: string) => campaignService.duplicateCampaign(campaignId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.all });
+    },
   });
 }
 
@@ -164,6 +179,30 @@ export function useQueueCampaignMessages() {
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(campaignId) });
       queryClient.invalidateQueries({ queryKey: campaignKeys.messages(campaignId) });
     },
+  });
+}
+
+// =============================================================================
+// Audience Estimation Hooks
+// =============================================================================
+
+/**
+ * Estimate recipient count based on campaign targeting filters.
+ * Auto-updates when targeting params change. Debounced via staleTime.
+ */
+export function useEstimateRecipients(params: {
+  siteId?: string | null;
+  segmentId?: string | null;
+  targetAllMembers?: boolean;
+  membershipStatuses?: string[];
+  campaignType?: 'sms' | 'email';
+}) {
+  return useQuery({
+    queryKey: campaignKeys.recipientEstimate(params),
+    queryFn: () => campaignService.estimateRecipientCount(params),
+    // Only estimate when no segment is selected (segments show their own estimatedSize)
+    enabled: !params.segmentId,
+    staleTime: 15 * 1000,
   });
 }
 

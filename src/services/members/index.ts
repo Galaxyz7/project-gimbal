@@ -48,6 +48,14 @@ export {
   getAllTags,
 } from './memberService';
 
+export { memberNoteService } from './memberNoteService';
+export {
+  useMemberNotes,
+  useCreateNote,
+  useUpdateNote,
+  useDeleteNote,
+} from './useMemberNotes';
+
 export { memberImportService } from './memberImportService';
 export {
   parseCSV,

@@ -41,7 +41,7 @@ const { mockSingle, mockQueryChain, mockRpc } = vi.hoisted(() => {
   return { mockSingle, mockQueryChain, mockRpc };
 });
 
-const resolvableChain = (result: { data: unknown; error: unknown }) => {
+const resolvableChain = (result: { data: unknown; error: unknown; count?: number | null }) => {
   Object.defineProperty(mockQueryChain, 'then', {
     value: vi.fn((resolve: (val: unknown) => void) => resolve(result)),
     writable: true,
@@ -64,31 +64,32 @@ vi.mock('@/lib/supabase', () => ({
 describe('campaignService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolvableChain({ data: [], error: null });
+    resolvableChain({ data: [], error: null, count: 0 });
   });
 
   describe('getCampaigns', () => {
-    it('should fetch campaigns', async () => {
-      resolvableChain({ data: [mockCampaignRow], error: null });
+    it('should fetch campaigns with total count', async () => {
+      resolvableChain({ data: [mockCampaignRow], error: null, count: 1 });
       const result = await getCampaigns();
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Summer Sale');
+      expect(result.campaigns).toHaveLength(1);
+      expect(result.campaigns[0].name).toBe('Summer Sale');
+      expect(result.totalCount).toBe(1);
     });
 
     it('should filter by status', async () => {
-      resolvableChain({ data: [], error: null });
+      resolvableChain({ data: [], error: null, count: 0 });
       await getCampaigns({ status: 'draft' });
       expect(mockQueryChain.eq).toHaveBeenCalledWith('status', 'draft');
     });
 
     it('should filter by campaign type', async () => {
-      resolvableChain({ data: [], error: null });
+      resolvableChain({ data: [], error: null, count: 0 });
       await getCampaigns({ campaignType: 'email' });
       expect(mockQueryChain.eq).toHaveBeenCalledWith('campaign_type', 'email');
     });
 
     it('should search by name', async () => {
-      resolvableChain({ data: [], error: null });
+      resolvableChain({ data: [], error: null, count: 0 });
       await getCampaigns({ searchTerm: 'summer' });
       expect(mockQueryChain.ilike).toHaveBeenCalledWith('name', '%summer%');
     });

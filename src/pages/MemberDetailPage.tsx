@@ -19,7 +19,7 @@ export const MemberDetailPage = memo(function MemberDetailPage() {
   const { navItems } = useNavigation();
 
   const handleBack = useCallback(() => {
-    navigate('/members');
+    navigate('/audience');
   }, [navigate]);
 
   if (!id) {

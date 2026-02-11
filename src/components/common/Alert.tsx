@@ -35,8 +35,8 @@ const variantStyles: Record<AlertVariant, { container: string; icon: string }> =
     icon: 'text-[#2e7d32]',
   },
   warning: {
-    container: 'bg-[#ed6c02]/10 border-[#ed6c02]/30 text-[#c55a00]',
-    icon: 'text-[#ed6c02]',
+    container: 'bg-[#b45309]/10 border-[#b45309]/30 text-[#c55a00]',
+    icon: 'text-[#b45309]',
   },
   danger: {
     container: 'bg-[#d32f2f]/10 border-[#d32f2f]/30 text-[#b71c1c]',

@@ -52,8 +52,7 @@ function MembersIcon() {
 function CampaignsIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+      <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v6.114A4.369 4.369 0 005 11c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
     </svg>
   );
 }
@@ -100,6 +99,14 @@ function TemplatesIcon() {
   );
 }
 
+function HelpIcon() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -124,30 +131,22 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: <DashboardIcon />,
   },
   {
-    id: 'members',
-    label: 'Members',
-    href: '/members',
-    icon: <MembersIcon />,
-  },
-  {
     id: 'campaigns',
     label: 'Campaigns',
     href: '/campaigns',
     icon: <CampaignsIcon />,
-    children: [
-      {
-        id: 'campaigns-list',
-        label: 'All Campaigns',
-        href: '/campaigns',
-        icon: <CampaignsIcon />,
-      },
-      {
-        id: 'template-library',
-        label: 'Templates',
-        href: '/campaigns/templates',
-        icon: <TemplatesIcon />,
-      },
-    ],
+  },
+  {
+    id: 'templates',
+    label: 'Templates',
+    href: '/campaigns/templates',
+    icon: <TemplatesIcon />,
+  },
+  {
+    id: 'audience',
+    label: 'Audience',
+    href: '/audience',
+    icon: <MembersIcon />,
   },
   {
     id: 'segments',
@@ -156,9 +155,9 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: <SegmentsIcon />,
   },
   {
-    id: 'data-sources',
-    label: 'Data Sources',
-    href: '/data-sources',
+    id: 'import',
+    label: 'Import',
+    href: '/import',
     icon: <DataSourcesIcon />,
   },
   {
@@ -185,3 +184,11 @@ export const NAV_ITEMS: NavItemConfig[] = [
     ],
   },
 ];
+
+/** Help nav item — rendered in sidebar footer, not in main nav list */
+export const HELP_NAV_ITEM: NavItemConfig = {
+  id: 'help',
+  label: 'Help',
+  href: '/help',
+  icon: <HelpIcon />,
+};

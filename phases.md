@@ -2,7 +2,7 @@
 
 Internal company platform for analytics dashboards and marketing campaign management.
 
-## Current State (~65% Complete)
+## Current State (~85% Complete)
 
 ### Completed
 
@@ -58,7 +58,7 @@ Internal company platform for analytics dashboards and marketing campaign manage
 - Dashboard connected to real CRM data
 
 **Testing:**
-- 26 test files, 520 tests, ~78% statement coverage
+- 41 test files, ~78% statement coverage
 - Vitest + React Testing Library infrastructure
 
 **Utilities:**
@@ -161,63 +161,29 @@ Created in `src/components/dashboard/`:
 
 ## Phase 2: Data Import & Campaigns (Week 3-4)
 
-### 2.1 Data Import Module
+### 2.1 Data Import Module ⏳ PARTIAL
 
-> **Note:** Migration `004_data_sources` was replaced by CRM migrations. Data import UI still needed.
+> Database tables and UI wizard built. Sync execution pipeline still needed.
 
-**Database Migration: `007_data_sources.sql`** (future - for external sources)
-```sql
-CREATE TABLE data_sources (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) CHECK (type IN ('google_analytics', 'meta_pixel', 'postgres', 'mysql', 'csv_upload', 'csv_url')),
-    credentials JSONB, -- Encrypted
-    config JSONB DEFAULT '{}',
-    column_config JSONB DEFAULT '{}',
-    schedule_config JSONB DEFAULT '{}',
-    sync_schedule VARCHAR(50) DEFAULT 'manual',
-    last_sync_at TIMESTAMPTZ,
-    sync_status VARCHAR(50) DEFAULT 'idle',
-    table_name VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+**Database:** `015_data_import_tables.sql` ✅ Done
+- data_sources, import_tables, sync_logs tables with RLS
+- DB functions: create_import_table(), drop_import_table(), query_import_table(), insert_import_rows()
 
-CREATE TABLE import_tables (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    data_source_id UUID REFERENCES data_sources(id) ON DELETE CASCADE,
-    table_name VARCHAR(255) NOT NULL UNIQUE,
-    column_definitions JSONB NOT NULL,
-    row_count INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE sync_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    data_source_id UUID REFERENCES data_sources(id) ON DELETE CASCADE,
-    started_at TIMESTAMPTZ DEFAULT NOW(),
-    completed_at TIMESTAMPTZ,
-    status VARCHAR(50),
-    records_imported INTEGER DEFAULT 0,
-    records_skipped INTEGER DEFAULT 0,
-    error_message TEXT
-);
-
-ALTER TABLE data_sources ENABLE ROW LEVEL SECURITY;
-ALTER TABLE import_tables ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sync_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own data sources" ON data_sources FOR ALL USING (auth.uid() = user_id);
-```
-
-**Components** in `src/components/data-sources/`:
+**Components** in `src/components/data-sources/` ✅ Built:
 - DataSourceList.tsx, DataSourceCard.tsx
-- DataSourceWizard.tsx (7-step flow)
+- DataSourceWizard.tsx (7-step flow — to be restructured to 5 steps)
 - DataPreviewModal.tsx, ColumnConfigurator.tsx
 - CleaningRuleEditor.tsx, ScheduleConfigurator.tsx
-- CsvUploader.tsx, DatabaseConnector.tsx
-- SyncHistory.tsx
+- CsvUploader.tsx, DatabaseConnector.tsx, SyncHistory.tsx
+
+**Services** ✅ Built:
+- dataSourceService.ts, cleaningService.ts, importTableService.ts, scheduleService.ts
+
+**Still needed:**
+- syncService.ts (execution pipeline: fetch → clean → map → route to destination)
+- Unified 5-step wizard (combining data sources + member import)
+- Destination type selection and field mapping
+- Migration 017: destination_type, field_mappings columns
 
 ### 2.2 Campaign Management ✅ COMPLETE
 
@@ -238,31 +204,24 @@ CREATE POLICY "Users can manage own data sources" ON data_sources FOR ALL USING 
 - [x] CampaignsPage, CreateCampaignPage, EditCampaignPage
 - [x] CampaignDetailPage
 
-### 2.3 Starter Template Library ⏳ IN PROGRESS
+### 2.3 Starter Template Library ✅ COMPLETE
 
-**Database Migration: `011_starter_templates.sql`**
-- Add `is_system` flag to campaign_templates
-- Seed 8-10 pre-built templates (SMS + Email)
-- CAN-SPAM compliant email templates with `{{unsubscribeUrl}}`
-- SMS templates under 160 characters
+**Database Migration: `011_starter_templates.sql`** ✅ Done
 
 **Components:**
-- [ ] TemplateLibrary.tsx (card grid with type badges, preview, "Use Template")
-- [ ] TemplateSelector.tsx enhancement (grouped "Starter" / "My Templates")
-- [ ] Route: `/campaigns/templates`
+- [x] TemplateLibrary.tsx (card grid with type badges, preview, "Use Template")
+- [x] TemplateSelector.tsx enhancement (grouped "Starter" / "My Templates")
+- [x] Route: `/campaigns/templates`
 
 ### Exit Criteria
-- [ ] Connect CSV upload working
-- [ ] Connect PostgreSQL database
-- [ ] Data preview shows top 10 rows
-- [ ] Column configuration (rename, type, exclude)
-- [ ] Cleaning rules apply
-- [ ] Schedule sync working
 - [x] Create SMS/Email campaigns
 - [x] Template management
 - [x] Campaign scheduling
 - [x] Character counter for SMS
-- [ ] Starter template library available
+- [x] Starter template library available
+- [x] Data source wizard UI built
+- [ ] Sync execution pipeline working (CSV → destination)
+- [ ] Unified 5-step import wizard
 
 ---
 
@@ -294,13 +253,12 @@ CREATE POLICY "Users can manage own data sources" ON data_sources FOR ALL USING 
 **Pages:**
 - [x] AdminUsersPage, AdminSettingsPage
 
-### 3.3 Campaign Reporting Enhancements (Launch Polish)
+### 3.3 Campaign Reporting ✅ COMPLETE
 
-> Planned for Phase 3 launch polish. Existing CampaignMetrics shows basic counts; this adds time-series, funnels, and export.
+**Database Migration: `012_campaign_reporting.sql`** ✅ Done
 
-- [ ] campaignReportService.ts (timeline, funnel, top engaged, error summary)
-- [ ] CampaignReportDashboard.tsx (reuses existing chart components)
-- [ ] "Report" tab in CampaignDetail (for sent/sending campaigns)
+- [x] campaignReportService.ts (timeline, funnel, top engaged, error summary)
+- [x] CampaignReportDashboard.tsx (reuses existing chart components)
 - [ ] CSV export for message data
 
 ### 3.4 User Testing & Polish
@@ -323,7 +281,7 @@ CREATE POLICY "Users can manage own data sources" ON data_sources FOR ALL USING 
 - [x] Message tracking in UI
 - [x] Admin can manage users (3-tier RBAC)
 - [x] Admin can configure settings
-- [ ] Campaign reporting dashboard
+- [x] Campaign reporting service
 - [ ] 3-5 users validated workflow
 - [ ] No critical bugs
 
@@ -353,39 +311,18 @@ npm install reactflow @reactflow/node-toolbar @reactflow/minimap @reactflow/cont
 
 See `build-docs/10-future/visual-builders.md` for details.
 
-### A.2 Audience Segmentation UI
+### A.2 Audience Segmentation UI ✅ COMPLETE
 
-> Campaign targeting already works via CampaignForm (membership levels, statuses, tags) and `get_campaign_recipients()`. This adds reusable saved segments with a visual builder.
-
-**Database Migration: `013_audience_segments.sql`**
-- `audience_segments` table (rules JSONB, estimated_size, is_dynamic)
-- `segment_id` column on campaigns table
-- RPC: `estimate_segment_size(p_rules JSONB)`
+**Database Migration: `013_audience_segments.sql`** ✅ Done
 
 **Components** in `src/components/segments/`:
-- [ ] SegmentBuilder.tsx (AND/OR rule group builder)
-- [ ] RuleGroup.tsx, RuleCondition.tsx
-- [ ] SegmentPreview.tsx (real-time member count)
-- [ ] SegmentSelector.tsx (for CampaignForm)
+- [x] SegmentBuilder.tsx (AND/OR rule group builder)
+- [x] RuleGroup.tsx, RuleCondition.tsx
+- [x] SegmentPreview.tsx (real-time member count)
+- [x] SegmentList.tsx, SegmentSelector.tsx
 
-**Service:** segmentService.ts (CRUD + size estimation)
-**Page:** `/segments`
-
-### A.3 A/B Testing
-
-> Subject line A/B testing with automatic winner determination. Depends on campaign reporting (Phase 3.3) and segmentation (Phase A.2).
-
-**Database Migration: `014_ab_testing.sql`**
-- `is_ab_test`, `ab_test_config`, `parent_campaign_id`, `variant_label` on campaigns
-- `ab_tests` table (test config, winner tracking)
-
-**Components:**
-- [ ] ABTestSetup.tsx (variant B subject, test %, winner metric)
-- [ ] ABTestResults.tsx (side-by-side comparison)
-- [ ] ABTestProgress.tsx (phase indicator)
-
-**Edge Function:** evaluate-ab-test/index.ts (auto winner determination)
-**Service:** abTestService.ts
+**Service:** segmentService.ts (CRUD + size estimation) ✅ Done
+**Page:** `/segments` ✅ Done
 
 ---
 
@@ -455,7 +392,7 @@ See `build-docs/10-future/` for detailed documentation:
 
 ## Migration Summary
 
-### MVP Migrations - Completed
+### Completed Migrations
 
 | # | Migration | Status | Description |
 |---|-----------|--------|-------------|
@@ -468,25 +405,29 @@ See `build-docs/10-future/` for detailed documentation:
 | 8 | profiles_app_settings | ✅ Done | User profiles, app settings, API credentials |
 | 9 | fix_rls_infinite_recursion | ✅ Done | RLS policy fix |
 | 10 | audit_log_cleanup_cron | ✅ Done | Automated audit log cleanup |
+| 11 | starter_templates | ✅ Done | System template flag + seed data |
+| 12 | campaign_reporting | ✅ Done | Campaign report views and metrics |
+| 13 | audience_segments | ✅ Done | Saved audience segments with rules |
+| 14 | marketing_enhancements | ✅ Done | Campaign and marketing improvements |
+| 15 | data_import_tables | ✅ Done | Data sources, import tables, sync logs |
+| 16 | rate_limit_get_count | ✅ Done | Rate limit helper function |
 
-### MVP Migrations - Remaining
+### Remaining Migrations
 
-| # | Migration | Sprint | Description |
-|---|-----------|--------|-------------|
-| 11 | starter_templates | 2 | System template flag + seed data |
+| # | Migration | Description |
+|---|-----------|-------------|
+| 17 | data_source_destinations | Destination type, field mappings for unified import |
 
 ### Post-MVP Migrations
 
 | # | Migration | Phase | Description |
 |---|-----------|-------|-------------|
-| 12 | visual_builders | A | Flow and dashboard builders |
-| 13 | audience_segments | A | Saved audience segments with rules |
-| 14 | ab_testing | A | A/B test configuration and tracking |
-| 15 | social_media | B | Social account connections |
-| 16 | ai_assistant | C | AI providers, conversations, tokens |
-| 17 | instance_config | D | White-label configuration |
-| 18 | mfa | D | MFA recovery codes |
-| 19 | gdpr | D | Full GDPR data requests |
+| 18 | visual_builders | A | Flow and dashboard builders |
+| 19 | social_media | B | Social account connections |
+| 20 | ai_assistant | C | AI providers, conversations, tokens |
+| 21 | instance_config | D | White-label configuration |
+| 22 | mfa | D | MFA recovery codes |
+| 23 | gdpr | D | Full GDPR data requests |
 
 ---
 
@@ -509,8 +450,9 @@ See `build-docs/10-future/` for detailed documentation:
 - [x] Date range filtering with trend calculations
 
 **Data Import** ⏳ Partial:
-- [x] Import services (cleaning, scheduling)
-- [ ] Data Sources UI components
+- [x] Import services (cleaning, scheduling, data source CRUD)
+- [x] Data Sources UI components (wizard, list, card)
+- [ ] Sync execution pipeline
 - [ ] GA4 and Meta Pixel connectors
 
 **Campaigns** ✅ Complete:
@@ -518,7 +460,8 @@ See `build-docs/10-future/` for detailed documentation:
 - [x] Template management (CRUD + variable rendering)
 - [x] Twilio/SendGrid integration (Edge Functions)
 - [x] TCPA/CAN-SPAM compliance enforced
-- [ ] Starter template library
+- [x] Starter template library
+- [x] Campaign reporting service
 
 **Admin Portal** ✅ Complete:
 - [x] Admin can manage users (Admin/User/Viewer)

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   CampaignMessage,
   CampaignMessageWithMember,
+  MemberCampaignActivity,
   MessageStatus,
 } from '@/types/campaign';
 
@@ -186,6 +187,42 @@ export async function getMessageCountsByStatus(campaignId: string): Promise<Reco
   return counts;
 }
 
+/**
+ * Get campaign messages sent to a specific member (with campaign details)
+ */
+export async function getMemberMessages(memberId: string): Promise<MemberCampaignActivity[]> {
+  const { data, error } = await supabase
+    .from('campaign_messages')
+    .select(`
+      id, campaign_id, status, queued_at, sent_at, delivered_at, opened_at, clicked_at, failed_at,
+      campaigns (id, name, campaign_type)
+    `)
+    .eq('member_id', memberId)
+    .order('queued_at', { ascending: false });
+
+  if (error) {
+    throw MessageServiceError('Failed to fetch member messages', error);
+  }
+
+  return (data || []).map((row: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const campaign = row.campaigns as any;
+    return {
+      id: row.id as string,
+      campaignId: row.campaign_id as string,
+      campaignName: campaign?.name ?? 'Unknown Campaign',
+      campaignType: campaign?.campaign_type ?? 'email',
+      status: row.status as MessageStatus,
+      queuedAt: row.queued_at as string,
+      sentAt: row.sent_at as string | null,
+      deliveredAt: row.delivered_at as string | null,
+      openedAt: row.opened_at as string | null,
+      clickedAt: row.clicked_at as string | null,
+      failedAt: row.failed_at as string | null,
+    };
+  });
+}
+
 // =============================================================================
 // Update Operations
 // =============================================================================
@@ -322,6 +359,7 @@ export async function markMessageClicked(messageId: string): Promise<CampaignMes
 
 export const messageService = {
   getCampaignMessages,
+  getMemberMessages,
   getMessageById,
   getMessageByExternalId,
   getMessageCountsByStatus,

@@ -84,6 +84,7 @@ function NavItemComponent({ item, collapsed, depth = 0 }: NavItemComponentProps)
     return (
       <div
         className={[navItemBaseStyles, navItemDisabledStyles, collapsed ? 'justify-center' : ''].join(' ')}
+        title={collapsed ? item.label : undefined}
         aria-disabled="true"
       >
         <span className="shrink-0 w-5 h-5">{item.icon}</span>
@@ -99,6 +100,7 @@ function NavItemComponent({ item, collapsed, depth = 0 }: NavItemComponentProps)
         <button
           type="button"
           onClick={handleToggle}
+          title={collapsed ? item.label : undefined}
           className={[
             navItemBaseStyles,
             'w-full',
@@ -132,6 +134,8 @@ function NavItemComponent({ item, collapsed, depth = 0 }: NavItemComponentProps)
   return (
     <NavLink
       to={item.href}
+      end
+      title={collapsed ? item.label : undefined}
       className={({ isActive: linkActive }) =>
         [
           navItemBaseStyles,

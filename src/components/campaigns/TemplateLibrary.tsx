@@ -18,7 +18,8 @@ import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../common/EmptyState';
 import { EmailPreviewModal } from './EmailPreviewModal';
 import { useTemplates, useDuplicateTemplate, useAllTemplateStats } from '@/services/campaigns';
-import type { CampaignTemplate, CampaignType, TemplateStats } from '@/types/campaign';
+import type { CampaignTemplate, CampaignType, TemplateCategory, TemplateStats } from '@/types/campaign';
+import { TEMPLATE_CATEGORY_LABELS } from '@/types/campaign';
 
 // =============================================================================
 // Types
@@ -36,6 +37,11 @@ const TYPE_FILTER_OPTIONS = [
   { value: '', label: 'All Types' },
   { value: 'sms', label: 'SMS' },
   { value: 'email', label: 'Email' },
+];
+
+const CATEGORY_FILTER_OPTIONS = [
+  { value: '', label: 'All Categories' },
+  ...Object.entries(TEMPLATE_CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 // =============================================================================
@@ -72,7 +78,7 @@ function TemplateCard({ template, stats, onUse, onCustomize, onPreview, isCustom
     : template.content;
 
   return (
-    <Card className="flex flex-col h-full">
+    <Card fullHeight>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-medium text-[#003559] truncate">
@@ -84,12 +90,18 @@ function TemplateCard({ template, stats, onUse, onCustomize, onPreview, isCustom
             </p>
           )}
         </div>
-        <Badge
-          variant={template.templateType === 'sms' ? 'info' : 'default'}
-          className="ml-2 flex-shrink-0"
-        >
-          {template.templateType === 'sms' ? 'SMS' : 'Email'}
-        </Badge>
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          {template.category && (
+            <Badge variant="secondary" size="sm">
+              {TEMPLATE_CATEGORY_LABELS[template.category] ?? template.category}
+            </Badge>
+          )}
+          <Badge
+            variant={template.templateType === 'sms' ? 'info' : 'default'}
+          >
+            {template.templateType === 'sms' ? 'SMS' : 'Email'}
+          </Badge>
+        </div>
       </div>
 
       {template.subject && (
@@ -166,6 +178,7 @@ function TemplateCard({ template, stats, onUse, onCustomize, onPreview, isCustom
 
 export function TemplateLibrary({ className = '' }: TemplateLibraryProps) {
   const [typeFilter, setTypeFilter] = useState<CampaignType | ''>('');
+  const [categoryFilter, setCategoryFilter] = useState<TemplateCategory | ''>('');
   const [searchInput, setSearchInput] = useState('');
   const [previewTemplate, setPreviewTemplate] = useState<CampaignTemplate | null>(null);
   const navigate = useNavigate();
@@ -173,11 +186,12 @@ export function TemplateLibrary({ className = '' }: TemplateLibraryProps) {
   const debouncedSearch = useDebounce(searchInput, 300);
 
   const queryParams = useMemo(() => {
-    const params: { type?: CampaignType; search?: string } = {};
+    const params: { type?: CampaignType; category?: string; search?: string } = {};
     if (typeFilter) params.type = typeFilter;
+    if (categoryFilter) params.category = categoryFilter;
     if (debouncedSearch) params.search = debouncedSearch;
     return Object.keys(params).length > 0 ? params : undefined;
-  }, [typeFilter, debouncedSearch]);
+  }, [typeFilter, categoryFilter, debouncedSearch]);
 
   const { data: templates, isLoading } = useTemplates(queryParams);
   const { data: allStats } = useAllTemplateStats();
@@ -241,6 +255,14 @@ export function TemplateLibrary({ className = '' }: TemplateLibraryProps) {
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as CampaignType | '')}
             options={TYPE_FILTER_OPTIONS}
+            hideLabel
+          />
+        </div>
+        <div className="w-40">
+          <Select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as TemplateCategory | '')}
+            options={CATEGORY_FILTER_OPTIONS}
             hideLabel
           />
         </div>

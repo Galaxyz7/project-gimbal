@@ -12,6 +12,7 @@ export type {
   VisitsByDay,
   MembershipLevelBreakdown,
   TopMember,
+  FollowUpMember,
   DateRange,
 } from './analyticsService';
 
@@ -24,4 +25,5 @@ export {
   useMembershipLevelBreakdown,
   useTopMembersByLtv,
   useEngagementTrends,
+  useFollowUpMembers,
 } from './useAnalytics';

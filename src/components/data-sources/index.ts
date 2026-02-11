@@ -35,3 +35,9 @@ export type { ScheduleConfiguratorProps } from './ScheduleConfigurator';
 
 export { ReviewStep } from './ReviewStep';
 export type { ReviewStepProps } from './ReviewStep';
+
+export { DataTypeSelector } from './DataTypeSelector';
+export type { DataTypeSelectorProps } from './DataTypeSelector';
+
+export { MapAndCleanStep } from './MapAndCleanStep';
+export type { MapAndCleanStepProps } from './MapAndCleanStep';

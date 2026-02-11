@@ -27,9 +27,11 @@ describe('useNavigation', () => {
     // Admin should see all items including Admin section
     const ids = result.current.navItems.map((item) => item.id);
     expect(ids).toContain('dashboard');
-    expect(ids).toContain('members');
     expect(ids).toContain('campaigns');
-    expect(ids).toContain('data-sources');
+    expect(ids).toContain('templates');
+    expect(ids).toContain('audience');
+    expect(ids).toContain('segments');
+    expect(ids).toContain('import');
     expect(ids).toContain('admin');
   });
 
@@ -38,8 +40,9 @@ describe('useNavigation', () => {
     const { result } = renderHook(() => useNavigation());
     const ids = result.current.navItems.map((item) => item.id);
     expect(ids).toContain('dashboard');
-    expect(ids).toContain('members');
     expect(ids).toContain('campaigns');
+    expect(ids).toContain('audience');
+    expect(ids).toContain('import');
     expect(ids).not.toContain('admin');
   });
 

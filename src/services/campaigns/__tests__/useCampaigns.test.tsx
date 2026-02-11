@@ -118,7 +118,7 @@ beforeEach(() => {
 describe('Campaign Query Hooks', () => {
   it('useCampaigns calls getCampaigns with filters', async () => {
     const campaigns = [{ id: 'c-1', name: 'Welcome' }, { id: 'c-2', name: 'Promo' }];
-    mockCampaignService.getCampaigns.mockResolvedValue(campaigns);
+    mockCampaignService.getCampaigns.mockResolvedValue({ campaigns, totalCount: 2 });
 
     const filters = { status: 'draft', campaignType: 'email' };
     const { result } = renderHook(() => useCampaigns(filters), { wrapper: createWrapper() });
@@ -126,8 +126,9 @@ describe('Campaign Query Hooks', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(mockCampaignService.getCampaigns).toHaveBeenCalledWith(filters);
-    expect(result.current.data).toHaveLength(2);
-    expect(result.current.data![0].id).toBe('c-1');
+    expect(result.current.data!.campaigns).toHaveLength(2);
+    expect(result.current.data!.campaigns[0].id).toBe('c-1');
+    expect(result.current.data!.totalCount).toBe(2);
   });
 
   it('useCampaign calls getCampaignWithDetails with id', async () => {

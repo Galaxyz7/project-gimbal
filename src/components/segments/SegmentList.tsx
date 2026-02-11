@@ -3,11 +3,14 @@
  * Displays saved audience segments split into starter (system) and user segments
  */
 
+import { useState, useCallback, useMemo } from 'react';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../common/EmptyState';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { SegmentOverlapDialog } from './SegmentOverlapDialog';
 import { useSegments, useDeleteSegment, useDuplicateSegment } from '@/services/segments';
 import type { AudienceSegment } from '@/types/segment';
 
@@ -35,6 +38,8 @@ function SegmentCard({
   onDuplicate,
   deletePending,
   duplicatePending,
+  compareSelected,
+  onCompareToggle,
 }: {
   segment: AudienceSegment;
   isSystem: boolean;
@@ -44,37 +49,54 @@ function SegmentCard({
   onDuplicate?: (segment: AudienceSegment) => void;
   deletePending: boolean;
   duplicatePending: boolean;
+  compareSelected?: boolean;
+  onCompareToggle?: (segment: AudienceSegment) => void;
 }) {
   return (
     <Card
       padding="md"
-      className="hover:shadow-md transition-shadow cursor-pointer"
+      className={[
+        'hover:shadow-md transition-shadow cursor-pointer',
+        compareSelected ? 'ring-2 ring-[#0353a4]' : '',
+      ].join(' ')}
       onClick={() => onSelect?.(segment)}
     >
       <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-medium text-[#003559] truncate">
-              {segment.name}
-            </h3>
-            <Badge variant="info">
-              {segment.estimatedSize.toLocaleString()} members
-            </Badge>
-            <Badge variant={segment.rules.logic === 'AND' ? 'default' : 'warning'}>
-              {segment.rules.logic}
-            </Badge>
-            {isSystem && (
-              <Badge variant="default">Starter</Badge>
-            )}
-          </div>
-          {segment.description && (
-            <p className="text-sm text-gray-500 mt-0.5 truncate">{segment.description}</p>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {onCompareToggle && (
+            <input
+              type="checkbox"
+              checked={compareSelected}
+              onChange={(e) => { e.stopPropagation(); onCompareToggle(segment); }}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-[#e0e0e0] text-[#0353a4] focus:ring-[#0353a4]"
+              aria-label={`Select ${segment.name} for comparison`}
+            />
           )}
-          <p className="text-xs text-gray-400 mt-1">
-            {segment.rules.conditions.length} condition{segment.rules.conditions.length !== 1 ? 's' : ''}
-            {' \u00B7 '}
-            Updated {new Date(segment.updatedAt).toLocaleDateString()}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-medium text-[#003559] truncate">
+                {segment.name}
+              </h3>
+              <Badge variant="info">
+                {segment.estimatedSize.toLocaleString()} members
+              </Badge>
+              <Badge variant={segment.rules.logic === 'AND' ? 'default' : 'warning'}>
+                {segment.rules.logic}
+              </Badge>
+              {isSystem && (
+                <Badge variant="default">Starter</Badge>
+              )}
+            </div>
+            {segment.description && (
+              <p className="text-sm text-gray-500 mt-0.5 truncate">{segment.description}</p>
+            )}
+            <p className="text-xs text-gray-400 mt-1">
+              {segment.rules.conditions.length} condition{segment.rules.conditions.length !== 1 ? 's' : ''}
+              {' \u00B7 '}
+              Updated {new Date(segment.updatedAt).toLocaleDateString()}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 ml-4">
@@ -133,13 +155,40 @@ export function SegmentList({ onSelect, onEdit, onCreate, className = '' }: Segm
   const { data: segments, isLoading } = useSegments();
   const deleteMutation = useDeleteSegment();
   const duplicateMutation = useDuplicateSegment();
+  const [segmentToDelete, setSegmentToDelete] = useState<AudienceSegment | null>(null);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [showOverlap, setShowOverlap] = useState(false);
 
   const systemSegments = segments?.filter((s) => s.isSystem) ?? [];
   const userSegments = segments?.filter((s) => !s.isSystem) ?? [];
 
-  const handleDelete = async (segment: AudienceSegment) => {
-    if (window.confirm(`Delete segment "${segment.name}"? This cannot be undone.`)) {
-      await deleteMutation.mutateAsync(segment.id);
+  const allSegments = useMemo(() => segments ?? [], [segments]);
+
+  const compareSegmentA = useMemo(
+    () => allSegments.find(s => s.id === compareIds[0]) ?? null,
+    [allSegments, compareIds]
+  );
+  const compareSegmentB = useMemo(
+    () => allSegments.find(s => s.id === compareIds[1]) ?? null,
+    [allSegments, compareIds]
+  );
+
+  const handleCompareToggle = useCallback((segment: AudienceSegment) => {
+    setCompareIds(prev => {
+      if (prev.includes(segment.id)) {
+        return prev.filter(id => id !== segment.id);
+      }
+      if (prev.length >= 2) {
+        return [prev[1], segment.id];
+      }
+      return [...prev, segment.id];
+    });
+  }, []);
+
+  const handleDeleteConfirm = async () => {
+    if (segmentToDelete) {
+      await deleteMutation.mutateAsync(segmentToDelete.id);
+      setSegmentToDelete(null);
     }
   };
 
@@ -170,6 +219,33 @@ export function SegmentList({ onSelect, onEdit, onCreate, className = '' }: Segm
 
   return (
     <div className={`space-y-8 ${className}`}>
+      {/* Compare bar */}
+      {compareIds.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-[#b9d6f2]/20 rounded-lg border border-[#b9d6f2]">
+          <span className="text-sm text-[#003559]">
+            {compareIds.length === 1
+              ? 'Select 1 more segment to compare'
+              : `${compareSegmentA?.name} vs ${compareSegmentB?.name}`}
+          </span>
+          <div className="flex-1" />
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={compareIds.length < 2}
+            onClick={() => setShowOverlap(true)}
+          >
+            Compare
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCompareIds([])}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Starter Segments */}
       {systemSegments.length > 0 && (
         <div className="space-y-4">
@@ -186,9 +262,11 @@ export function SegmentList({ onSelect, onEdit, onCreate, className = '' }: Segm
               isSystem
               onSelect={onSelect}
               onDuplicate={handleDuplicate}
-              onDelete={handleDelete}
+              onDelete={setSegmentToDelete}
               deletePending={deleteMutation.isPending}
               duplicatePending={duplicateMutation.isPending}
+              compareSelected={compareIds.includes(segment.id)}
+              onCompareToggle={handleCompareToggle}
             />
           ))}
         </div>
@@ -212,9 +290,11 @@ export function SegmentList({ onSelect, onEdit, onCreate, className = '' }: Segm
               isSystem={false}
               onSelect={onSelect}
               onEdit={onEdit}
-              onDelete={handleDelete}
+              onDelete={setSegmentToDelete}
               deletePending={deleteMutation.isPending}
               duplicatePending={duplicateMutation.isPending}
+              compareSelected={compareIds.includes(segment.id)}
+              onCompareToggle={handleCompareToggle}
             />
           ))
         ) : (
@@ -225,6 +305,24 @@ export function SegmentList({ onSelect, onEdit, onCreate, className = '' }: Segm
           />
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={segmentToDelete !== null}
+        onClose={() => setSegmentToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Segment"
+        message={`Are you sure you want to delete "${segmentToDelete?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleteMutation.isPending}
+      />
+
+      <SegmentOverlapDialog
+        isOpen={showOverlap}
+        onClose={() => setShowOverlap(false)}
+        segmentA={compareSegmentA}
+        segmentB={compareSegmentB}
+      />
     </div>
   );
 }

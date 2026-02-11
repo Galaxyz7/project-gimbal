@@ -1,10 +1,7 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../stores/authStore';
 import { useToast } from '../hooks/useToast';
-import { auditLogger, AuditEventType } from '../utils/auditLog';
-import { clearRememberMe } from '../utils/rememberMe';
 
 // Layout
 import { AppLayout } from '../components/layout';
@@ -30,6 +27,15 @@ import {
   useMembershipLevelBreakdown,
   useTopMembersByLtv,
 } from '../services/analytics';
+
+// Common
+import { Button } from '../components/common/Button';
+
+// Dashboard Widgets
+import { OnboardingChecklist } from '../components/dashboard/OnboardingChecklist';
+import { CampaignSummaryCard } from '../components/dashboard/CampaignSummaryCard';
+import { FollowUpWidget } from '../components/dashboard/FollowUpWidget';
+import { QuickActions } from '../components/dashboard/QuickActions';
 
 // Skeleton component
 import { Skeleton } from '../components/Skeleton';
@@ -201,22 +207,6 @@ export const DashboardPage = memo(function DashboardPage() {
     },
   ], []);
 
-  async function handleLogout() {
-    toast.info('Logging out...');
-    auditLogger.log(AuditEventType.LOGOUT, user?.email);
-    clearRememberMe();
-    await supabase.auth.signOut();
-    navigate('/login');
-  }
-
-  function handleUserAction(action: 'settings' | 'logout') {
-    if (action === 'logout') {
-      handleLogout();
-    } else if (action === 'settings') {
-      navigate('/admin/settings');
-    }
-  }
-
   // Calculate trends by comparing current period to previous period
   const memberTrend = useMemo(() => {
     if (!metrics || !previousMetrics) return 0;
@@ -238,8 +228,6 @@ export const DashboardPage = memo(function DashboardPage() {
     <AppLayout
       navItems={navItems}
       breadcrumbs={[{ label: 'Dashboard' }]}
-      user={user ? { name: user.email?.split('@')[0] || 'User', email: user.email || '' } : null}
-      onUserAction={handleUserAction}
       logo={
         <span className="text-lg font-bold text-[#003559]">Gimbal</span>
       }
@@ -255,15 +243,50 @@ export const DashboardPage = memo(function DashboardPage() {
             Welcome back, <span className="font-medium">{user?.email?.split('@')[0]}</span>
           </p>
         </div>
-        <DateRangePicker
-          value={dateRange}
-          onChange={setDateRange}
-          presets={['7d', '30d', '90d', 'mtd', 'ytd']}
-        />
+        {!(!metricsLoading && metrics?.totalMembers === 0) && (
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            presets={['7d', '30d', '90d', 'mtd', 'ytd']}
+          />
+        )}
       </div>
 
+      {/* First-run empty state */}
+      {!metricsLoading && metrics?.totalMembers === 0 ? (
+        <div className="space-y-6">
+          {/* Hero */}
+          <div className="bg-white rounded-lg border border-[#e0e0e0] p-8 text-center">
+            <svg className="w-20 h-20 mx-auto mb-4 text-[#0353a4]/20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v6.114A4.369 4.369 0 005 11c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+            </svg>
+            <h2 className="text-2xl font-semibold text-[#003559] mb-2">Welcome to Project Gimbal!</h2>
+            <p className="text-gray-500 max-w-md mx-auto mb-6">
+              Import your audience, configure messaging, and start reaching your members with targeted SMS and Email campaigns.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button onClick={() => navigate('/import/new')}>
+                Import Members
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/campaigns/templates')}>
+                Browse Templates
+              </Button>
+            </div>
+          </div>
+
+          {/* Onboarding Checklist */}
+          <OnboardingChecklist
+            hasMembers={false}
+            hasMessagingConfig={false}
+            hasCampaigns={false}
+            hasSentCampaign={false}
+          />
+        </div>
+      ) : (
+        <div className="space-y-6">
+
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricsLoading ? (
           <>
             <MetricCardSkeleton />
@@ -320,8 +343,17 @@ export const DashboardPage = memo(function DashboardPage() {
         )}
       </div>
 
+      {/* Quick Actions */}
+      <QuickActions />
+
+      {/* Campaign Summary + Follow-Up Widget */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CampaignSummaryCard />
+        <FollowUpWidget />
+      </div>
+
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Line Chart - Engagement Over Time */}
         <div className="lg:col-span-2">
           {engagementLoading ? (
@@ -369,28 +401,26 @@ export const DashboardPage = memo(function DashboardPage() {
       </div>
 
       {/* Bar Chart - Revenue by Month */}
-      <div className="mb-6">
-        {revenueLoading ? (
-          <ChartSkeleton height={300} />
-        ) : revenueChartData.length > 0 ? (
-          <BarChart
-            title="Revenue by Month"
-            data={revenueChartData}
-            series={revenueSeries}
-            height={300}
-          />
-        ) : (
-          <div className="bg-white rounded-lg border border-[#e0e0e0] p-4 h-[300px] flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
-              </svg>
-              <p>No revenue data yet</p>
-            </div>
+      {revenueLoading ? (
+        <ChartSkeleton height={300} />
+      ) : revenueChartData.length > 0 ? (
+        <BarChart
+          title="Revenue by Month"
+          data={revenueChartData}
+          series={revenueSeries}
+          height={300}
+        />
+      ) : (
+        <div className="bg-white rounded-lg border border-[#e0e0e0] p-4 h-[300px] flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+            </svg>
+            <p>No revenue data yet</p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Data Table - Top Members */}
       {topMembersLoading ? (
@@ -425,11 +455,14 @@ export const DashboardPage = memo(function DashboardPage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No members yet</h3>
           <p className="text-gray-500 mb-4">Import members to see analytics and insights.</p>
           <button
-            onClick={() => navigate('/data-sources')}
+            onClick={() => navigate('/import')}
             className="inline-flex items-center px-4 py-2 bg-[#0353a4] text-white rounded-lg hover:bg-[#003559] transition-colors"
           >
             Import Members
           </button>
+        </div>
+      )}
+
         </div>
       )}
     </AppLayout>

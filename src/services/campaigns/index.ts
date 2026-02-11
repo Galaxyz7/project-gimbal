@@ -22,6 +22,7 @@ export {
   useCreateCampaign,
   useUpdateCampaign,
   useDeleteCampaign,
+  useDuplicateCampaign,
   useScheduleCampaign,
   useCancelCampaign,
   useQueueCampaignMessages,
@@ -42,6 +43,8 @@ export {
   useAllTemplateStats,
   // Message hooks
   useUpdateMessageStatus,
+  // Audience estimation
+  useEstimateRecipients,
 } from './useCampaigns';
 
 // Re-export types for convenience
@@ -68,4 +71,5 @@ export type {
   TopEngagedRecipient,
   TemplateStats,
   CampaignDeviceBreakdown,
+  MemberCampaignActivity,
 } from '@/types/campaign';

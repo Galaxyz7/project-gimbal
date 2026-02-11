@@ -38,17 +38,23 @@ export const dataSourceService = {
   },
 
   async create(input: CreateDataSourceRequest): Promise<DataSource> {
+    const insertData: Record<string, unknown> = {
+      name: input.name,
+      type: input.type,
+      credentials: input.credentials,
+      config: input.config,
+      column_config: input.column_config || { columns: [], row_filters: [], duplicate_handling: 'keep_all' },
+      schedule_config: input.schedule_config || { frequency: 'manual', retry_on_failure: true, max_retries: 3, retry_delay_minutes: 15 },
+      sync_schedule: input.sync_schedule || 'manual',
+    };
+
+    if (input.destination_type) insertData.destination_type = input.destination_type;
+    if (input.field_mappings) insertData.field_mappings = input.field_mappings;
+    if (input.site_id) insertData.site_id = input.site_id;
+
     const { data, error } = await supabase
       .from('data_sources')
-      .insert({
-        name: input.name,
-        type: input.type,
-        credentials: input.credentials,
-        config: input.config,
-        column_config: input.column_config || { columns: [], row_filters: [], duplicate_handling: 'keep_all' },
-        schedule_config: input.schedule_config || { frequency: 'manual', retry_on_failure: true, max_retries: 3, retry_delay_minutes: 15 },
-        sync_schedule: input.sync_schedule || 'manual',
-      })
+      .insert(insertData)
       .select()
       .single();
 

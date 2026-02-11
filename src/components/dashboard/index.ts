@@ -26,3 +26,7 @@ export type { DataTableProps, DataTableColumn } from './DataTable';
 // DateRangePicker - Date range selection with presets
 export { DateRangePicker } from './DateRangePicker';
 export type { DateRangePickerProps, DateRange, DateRangePreset } from './DateRangePicker';
+
+// FollowUpWidget - Dashboard follow-up members widget
+export { FollowUpWidget } from './FollowUpWidget';
+export type { FollowUpWidgetProps } from './FollowUpWidget';

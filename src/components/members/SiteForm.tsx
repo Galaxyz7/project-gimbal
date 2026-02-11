@@ -88,8 +88,8 @@ const US_STATES = [
  * @example
  * // Create mode
  * <SiteForm
- *   onSuccess={(site) => navigate(`/members`)}
- *   onCancel={() => navigate('/members')}
+ *   onSuccess={(site) => navigate(`/audience`)}
+ *   onCancel={() => navigate('/audience')}
  * />
  *
  * @example

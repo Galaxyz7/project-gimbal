@@ -21,13 +21,13 @@ export const CreateMemberPage = memo(function CreateMemberPage() {
 
   const handleSuccess = useCallback(
     (member: Member) => {
-      navigate(`/members/${member.id}`);
+      navigate(`/audience/${member.id}`);
     },
     [navigate]
   );
 
   const handleCancel = useCallback(() => {
-    navigate('/members');
+    navigate('/audience');
   }, [navigate]);
 
   return (

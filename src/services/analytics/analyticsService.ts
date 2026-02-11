@@ -63,6 +63,19 @@ export interface DateRange {
   end: Date;
 }
 
+export interface FollowUpMember {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  lifetimeValue: number;
+  lastVisitAt: string;
+  daysSinceVisit: number;
+  siteName: string;
+  engagement: 'warning' | 'danger';
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -527,5 +540,68 @@ export const analyticsService = {
     }
 
     return result;
+  },
+
+  /**
+   * Get members who need follow-up (last visit > 30 days ago, active, ordered by LTV)
+   */
+  async getFollowUpMembers(
+    limit: number = 5,
+    siteId?: string
+  ): Promise<FollowUpMember[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+
+    let query = supabase
+      .from('members')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        lifetime_value,
+        last_visit_at,
+        total_visits,
+        sites (
+          name
+        )
+      `)
+      .eq('is_active', true)
+      .eq('membership_status', 'active')
+      .lt('last_visit_at', cutoffDate)
+      .not('last_visit_at', 'is', null)
+      .order('lifetime_value', { ascending: false })
+      .limit(limit);
+
+    if (siteId) {
+      query = query.eq('site_id', siteId);
+    }
+
+    const { data: members } = await query;
+
+    if (!members) {
+      return [];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return members.map((m: any) => {
+      const daysSince = Math.floor(
+        (Date.now() - new Date(m.last_visit_at).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return {
+        id: m.id,
+        firstName: m.first_name,
+        lastName: m.last_name,
+        email: m.email,
+        phone: m.phone,
+        lifetimeValue: m.lifetime_value || 0,
+        lastVisitAt: m.last_visit_at,
+        daysSinceVisit: daysSince,
+        siteName: m.sites?.name || 'Unknown',
+        engagement: daysSince <= 60 ? 'warning' as const : 'danger' as const,
+      };
+    });
   },
 };

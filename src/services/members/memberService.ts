@@ -257,11 +257,26 @@ export async function hardDeleteMember(id: string): Promise<void> {
 /**
  * Search members with filters
  */
-export async function searchMembers(params: MemberSearchParams): Promise<MemberSearchResult[]> {
+export async function searchMembers(params: MemberSearchParams): Promise<{ members: MemberSearchResult[]; totalCount: number }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw MemberServiceError('Not authenticated');
 
-  const { data, error } = await supabase
+  // Build parallel count query on members table (RLS handles user filtering)
+  let countQuery = supabase
+    .from('members')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  if (params.siteId) countQuery = countQuery.eq('site_id', params.siteId);
+  if (params.membershipStatus) countQuery = countQuery.eq('membership_status', params.membershipStatus);
+  if (params.membershipLevelId) countQuery = countQuery.eq('membership_level_id', params.membershipLevelId);
+  if (params.searchTerm) {
+    const term = `%${params.searchTerm}%`;
+    countQuery = countQuery.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
+  }
+
+  // Data query via RPC (handles joins for site name, level name, etc.)
+  const dataQuery = supabase
     .rpc('search_members', {
       p_user_id: user.id,
       p_site_id: params.siteId ?? null,
@@ -273,11 +288,16 @@ export async function searchMembers(params: MemberSearchParams): Promise<MemberS
       p_offset: params.offset ?? 0,
     });
 
+  const [{ count, error: countError }, { data, error }] = await Promise.all([countQuery, dataQuery]);
+
   if (error) {
     throw MemberServiceError('Failed to search members', error);
   }
+  if (countError) {
+    throw MemberServiceError('Failed to count members', countError);
+  }
 
-  return (data || []).map((row: Record<string, unknown>) => ({
+  const members = (data || []).map((row: Record<string, unknown>) => ({
     id: row.id as string,
     firstName: row.first_name as string | null,
     lastName: row.last_name as string | null,
@@ -291,6 +311,8 @@ export async function searchMembers(params: MemberSearchParams): Promise<MemberS
     siteName: row.site_name as string,
     createdAt: row.created_at as string,
   }));
+
+  return { members, totalCount: count ?? 0 };
 }
 
 /**

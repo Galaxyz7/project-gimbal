@@ -4,15 +4,22 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import { Select } from '../common/Select';
 import { Card } from '../common/Card';
 import { Skeleton } from '../Skeleton';
+import { Dropdown } from '../common/Dropdown';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { CampaignStatusBadge } from './CampaignStatusBadge';
 import { CampaignTypeIcon } from './CampaignTypeIcon';
-import { useCampaigns } from '@/services/campaigns';
+import { Tooltip } from '../common/Tooltip';
+import { InlineEdit } from '../common/InlineEdit';
+import { useCampaigns, useDuplicateCampaign, useDeleteCampaign, useUpdateCampaign } from '@/services/campaigns';
+import { useSegments } from '@/services/segments';
 import type { Campaign, CampaignStatus, CampaignType } from '@/types/campaign';
+import type { DropdownEntry } from '../common/Dropdown';
 
 // =============================================================================
 // Types
@@ -53,10 +60,14 @@ const PAGE_SIZE = 25;
 
 interface CampaignRowProps {
   campaign: Campaign;
+  audienceLabel: string;
   onSelect?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onRename?: (id: string, name: string) => Promise<void>;
 }
 
-function CampaignRow({ campaign, onSelect }: CampaignRowProps) {
+function CampaignRow({ campaign, audienceLabel, onSelect, onDuplicate, onDelete, onRename }: CampaignRowProps) {
   const formattedDate = useMemo(() => {
     const date = campaign.scheduledAt || campaign.createdAt;
     return new Date(date).toLocaleDateString('en-US', {
@@ -93,7 +104,15 @@ function CampaignRow({ campaign, onSelect }: CampaignRowProps) {
             <CampaignTypeIcon type={campaign.campaignType} size="sm" />
           </div>
           <div>
-            <div className="font-medium text-[#003559]">{campaign.name}</div>
+            {campaign.status === 'draft' ? (
+              <InlineEdit
+                value={campaign.name}
+                onSave={(val) => onRename?.(campaign.id, val) ?? Promise.resolve()}
+                className="font-medium text-[#003559]"
+              />
+            ) : (
+              <div className="font-medium text-[#003559]">{campaign.name}</div>
+            )}
             {campaign.description && (
               <div className="text-xs text-gray-500 truncate max-w-xs">
                 {campaign.description}
@@ -105,7 +124,14 @@ function CampaignRow({ campaign, onSelect }: CampaignRowProps) {
       <td className="px-4 py-3">
         <CampaignStatusBadge status={campaign.status} />
       </td>
-      <td className="px-4 py-3 text-sm text-gray-500">{formattedDate}</td>
+      <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-[160px]">
+        {audienceLabel}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500">
+        <Tooltip content={`Updated ${new Date(campaign.updatedAt).toLocaleString()}`}>
+          <span>{formattedDate}</span>
+        </Tooltip>
+      </td>
       <td className="px-4 py-3 text-sm text-right">
         {campaign.totalSent > 0 ? (
           <span className="text-gray-700">
@@ -125,6 +151,23 @@ function CampaignRow({ campaign, onSelect }: CampaignRowProps) {
         ) : (
           <span className="text-gray-400">—</span>
         )}
+      </td>
+      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+        <Dropdown
+          trigger={
+            <button type="button" className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+          }
+          items={[
+            { label: 'Duplicate', onClick: () => onDuplicate?.(campaign.id) },
+            { type: 'divider' as const },
+            { label: 'Delete', onClick: () => onDelete?.(campaign.id), danger: true },
+          ] as DropdownEntry[]}
+          align="right"
+        />
       </td>
     </tr>
   );
@@ -151,6 +194,9 @@ function TableSkeleton() {
             <Skeleton width={100} height={16} />
           </td>
           <td className="px-4 py-3">
+            <Skeleton width={100} height={16} />
+          </td>
+          <td className="px-4 py-3">
             <Skeleton width={60} height={16} className="ml-auto" />
           </td>
           <td className="px-4 py-3">
@@ -167,11 +213,23 @@ function TableSkeleton() {
 // =============================================================================
 
 export function CampaignList({ siteId, onSelect, onCreate, className = '' }: CampaignListProps) {
+  const navigate = useNavigate();
+
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<CampaignType | ''>('');
   const [page, setPage] = useState(0);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Mutations
+  const duplicateMutation = useDuplicateCampaign();
+  const deleteMutation = useDeleteCampaign();
+  const updateMutation = useUpdateCampaign();
+
+  const handleRename = useCallback(async (id: string, name: string) => {
+    await updateMutation.mutateAsync({ id, input: { name } });
+  }, [updateMutation]);
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -188,19 +246,31 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
     return () => clearTimeout(searchTimeout);
   }, [searchTimeout]);
 
+  // Fetch segments for audience labels
+  const { data: segments } = useSegments();
+  const segmentMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seg of segments ?? []) {
+      map.set(seg.id, seg.name);
+    }
+    return map;
+  }, [segments]);
+
   // Fetch campaigns
-  const { data: campaigns, isLoading, error, refetch } = useCampaigns({
+  const { data, isLoading, error, refetch } = useCampaigns({
     siteId,
     status: statusFilter || undefined,
     campaignType: typeFilter || undefined,
     searchTerm: debouncedSearch || undefined,
-    limit: PAGE_SIZE + 1,
+    limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
 
   // Pagination
-  const hasMore = (campaigns?.length || 0) > PAGE_SIZE;
-  const displayedCampaigns = campaigns?.slice(0, PAGE_SIZE) || [];
+  const displayedCampaigns = data?.campaigns ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const hasMore = page < totalPages - 1;
 
   // Handlers
   const handleStatusChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -279,9 +349,11 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Campaign</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Audience</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Date</th>
               <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Sent</th>
               <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Delivery</th>
+              <th className="px-4 py-3 w-12" />
             </tr>
           </thead>
 
@@ -290,7 +362,7 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
           ) : displayedCampaigns.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
+                <td colSpan={7} className="px-4 py-12 text-center">
                   <svg
                     className="w-12 h-12 mx-auto mb-4 text-gray-300"
                     viewBox="0 0 20 20"
@@ -312,16 +384,35 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
             </tbody>
           ) : (
             <tbody>
-              {displayedCampaigns.map((campaign) => (
-                <CampaignRow key={campaign.id} campaign={campaign} onSelect={onSelect} />
-              ))}
+              {displayedCampaigns.map((campaign) => {
+                let audienceLabel = 'All Members';
+                if (campaign.segmentId) {
+                  audienceLabel = segmentMap.get(campaign.segmentId) ?? 'Segment';
+                } else if (!campaign.targetAllMembers && campaign.membershipStatuses?.length > 0) {
+                  audienceLabel = campaign.membershipStatuses.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ');
+                }
+                return (
+                  <CampaignRow
+                    key={campaign.id}
+                    campaign={campaign}
+                    audienceLabel={audienceLabel}
+                    onSelect={onSelect}
+                    onDuplicate={async (id) => {
+                      const newCampaign = await duplicateMutation.mutateAsync(id);
+                      navigate(`/campaigns/${newCampaign.id}`);
+                    }}
+                    onDelete={setDeleteId}
+                    onRename={handleRename}
+                  />
+                );
+              })}
             </tbody>
           )}
         </table>
       </div>
 
       {/* Pagination */}
-      {(page > 0 || hasMore) && (
+      {totalCount > 0 && (
         <div className="p-4 border-t border-[#e0e0e0] flex justify-between items-center">
           <Button
             variant="outline"
@@ -331,7 +422,10 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
           >
             Previous
           </Button>
-          <span className="text-sm text-gray-500">Page {page + 1}</span>
+          <span className="text-sm text-gray-500">
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()}
+            {totalPages > 1 && ` · Page ${page + 1} of ${totalPages}`}
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -342,6 +436,23 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
           </Button>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={async () => {
+          if (deleteId) {
+            await deleteMutation.mutateAsync(deleteId);
+            setDeleteId(null);
+          }
+        }}
+        title="Delete Campaign"
+        message="Are you sure you want to delete this campaign? This action cannot be undone."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleteMutation.isPending}
+      />
     </Card>
   );
 }

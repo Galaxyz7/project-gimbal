@@ -33,7 +33,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   primary: 'bg-[#b9d6f2] text-[#003559]',
   secondary: 'bg-[#006daa]/10 text-[#006daa]',
   success: 'bg-[#2e7d32]/10 text-[#2e7d32]',
-  warning: 'bg-[#ed6c02]/10 text-[#ed6c02]',
+  warning: 'bg-[#b45309]/10 text-[#b45309]',
   danger: 'bg-[#d32f2f]/10 text-[#d32f2f]',
   info: 'bg-[#0288d1]/10 text-[#0288d1]',
 };
@@ -43,7 +43,7 @@ const dotColors: Record<BadgeVariant, string> = {
   primary: 'bg-[#0353a4]',
   secondary: 'bg-[#006daa]',
   success: 'bg-[#2e7d32]',
-  warning: 'bg-[#ed6c02]',
+  warning: 'bg-[#b45309]',
   danger: 'bg-[#d32f2f]',
   info: 'bg-[#0288d1]',
 };

@@ -111,8 +111,8 @@ const US_STATES = [
  * // Create mode
  * <MemberForm
  *   siteId={selectedSiteId}
- *   onSuccess={(member) => navigate(`/members/${member.id}`)}
- *   onCancel={() => navigate('/members')}
+ *   onSuccess={(member) => navigate(`/audience/${member.id}`)}
+ *   onCancel={() => navigate('/audience')}
  * />
  *
  * @example

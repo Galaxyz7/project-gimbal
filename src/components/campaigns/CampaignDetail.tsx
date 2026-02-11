@@ -7,13 +7,18 @@ import { useState } from 'react';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
+import { ConfirmDialog } from '../common/ConfirmDialog';
+import { Tabs } from '../common/Tabs';
+import { Modal } from '../common/Modal';
 import { CampaignStatusBadge } from './CampaignStatusBadge';
 import { CampaignTypeIcon } from './CampaignTypeIcon';
 import { CampaignMetrics } from './CampaignMetrics';
 import { CampaignReportDashboard } from './CampaignReportDashboard';
 import { MessageList } from './MessageList';
-import { useCampaign, useCampaignMetrics, useScheduleCampaign, useCancelCampaign } from '@/services/campaigns';
-import type { Campaign } from '@/types/campaign';
+import { Input } from '../common/Input';
+import { useCampaign, useCampaignMetrics, useScheduleCampaign, useCancelCampaign, smsService, emailService } from '@/services/campaigns';
+import type { Campaign, CampaignType } from '@/types/campaign';
+import type { Tab } from '../common/Tabs';
 
 // =============================================================================
 // Types
@@ -26,8 +31,6 @@ export interface CampaignDetailProps {
   className?: string;
 }
 
-type Tab = 'overview' | 'messages' | 'content' | 'report';
-
 // =============================================================================
 // Component
 // =============================================================================
@@ -38,8 +41,9 @@ export function CampaignDetail({
   onBack,
   className = '',
 }: CampaignDetailProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showSendTest, setShowSendTest] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'cancel' | 'send' | null>(null);
 
   // Data fetching
   const { data: campaign, isLoading, error } = useCampaign(campaignId);
@@ -55,16 +59,13 @@ export function CampaignDetail({
     setShowScheduleModal(false);
   };
 
-  const handleCancel = async () => {
-    if (window.confirm('Are you sure you want to cancel this campaign?')) {
+  const handleConfirmAction = async () => {
+    if (confirmAction === 'cancel') {
       await cancelMutation.mutateAsync(campaignId);
-    }
-  };
-
-  const handleSendNow = async () => {
-    if (window.confirm('Are you sure you want to send this campaign now?')) {
+    } else if (confirmAction === 'send') {
       await scheduleMutation.mutateAsync({ id: campaignId, scheduledAt: new Date().toISOString() });
     }
+    setConfirmAction(null);
   };
 
   // Loading state
@@ -101,6 +102,104 @@ export function CampaignDetail({
   const canCancel = campaign.status === 'scheduled';
   const canSendNow = campaign.status === 'draft';
   const showReport = campaign.status === 'sent' || campaign.status === 'sending';
+
+  // Build tabs array
+  const tabs: Tab[] = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      content: (
+        <div className="space-y-6">
+          {metrics && <CampaignMetrics metrics={metrics} campaignType={campaign.campaignType} />}
+
+          <Card padding="lg">
+            <h3 className="text-lg font-medium text-[#003559] mb-4">Campaign Details</h3>
+            <dl className="grid grid-cols-2 gap-4">
+              <div>
+                <dt className="text-sm text-gray-500">Type</dt>
+                <dd className="text-sm font-medium capitalize">{campaign.campaignType}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-gray-500">Target Audience</dt>
+                <dd className="text-sm font-medium">
+                  {campaign.targetAllMembers
+                    ? 'All Members'
+                    : `Members with status: ${campaign.membershipStatuses.join(', ')}`}
+                </dd>
+              </div>
+              {campaign.campaignType === 'email' && campaign.subject && (
+                <div className="col-span-2">
+                  <dt className="text-sm text-gray-500">Subject Line</dt>
+                  <dd className="text-sm font-medium">{campaign.subject}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-sm text-gray-500">Total Recipients</dt>
+                <dd className="text-sm font-medium">{campaign.totalRecipients.toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-gray-500">Messages Sent</dt>
+                <dd className="text-sm font-medium">{campaign.totalSent.toLocaleString()}</dd>
+              </div>
+            </dl>
+          </Card>
+
+          <Card padding="lg">
+            <h3 className="text-lg font-medium text-[#003559] mb-4">Timeline</h3>
+            <div className="space-y-3">
+              <TimelineItem label="Created" date={campaign.createdAt} completed />
+              {campaign.scheduledAt && (
+                <TimelineItem label="Scheduled" date={campaign.scheduledAt} completed={!!campaign.startedAt} />
+              )}
+              {campaign.startedAt && (
+                <TimelineItem label="Started Sending" date={campaign.startedAt} completed />
+              )}
+              {campaign.completedAt && (
+                <TimelineItem label="Completed" date={campaign.completedAt} completed />
+              )}
+            </div>
+          </Card>
+        </div>
+      ),
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      content: <MessageList campaignId={campaignId} />,
+    },
+    {
+      id: 'content',
+      label: 'Content',
+      content: (
+        <Card padding="lg">
+          <h3 className="text-lg font-medium text-[#003559] mb-4">Message Content</h3>
+          {campaign.campaignType === 'email' && campaign.subject && (
+            <div className="mb-4">
+              <label className="text-sm text-gray-500">Subject</label>
+              <p className="text-sm font-medium">{campaign.subject}</p>
+            </div>
+          )}
+          <div>
+            <label className="text-sm text-gray-500">Body</label>
+            <div className="mt-2 p-4 bg-[#f5f5f5] rounded-lg font-mono text-sm whitespace-pre-wrap">
+              {campaign.content}
+            </div>
+          </div>
+        </Card>
+      ),
+    },
+    ...(showReport
+      ? [
+          {
+            id: 'report',
+            label: 'Report',
+            content: (
+              <CampaignReportDashboard campaignId={campaignId} campaignType={campaign.campaignType} />
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -148,13 +247,18 @@ export function CampaignDetail({
                 Schedule
               </Button>
             )}
+            {(canSendNow || canSchedule) && (
+              <Button variant="outline" onClick={() => setShowSendTest(true)}>
+                Send Test
+              </Button>
+            )}
             {canSendNow && (
-              <Button onClick={handleSendNow} loading={scheduleMutation.isPending}>
+              <Button onClick={() => setConfirmAction('send')} loading={scheduleMutation.isPending}>
                 Send Now
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" onClick={handleCancel} loading={cancelMutation.isPending}>
+              <Button variant="danger" onClick={() => setConfirmAction('cancel')} loading={cancelMutation.isPending}>
                 Cancel Campaign
               </Button>
             )}
@@ -163,137 +267,42 @@ export function CampaignDetail({
       </Card>
 
       {/* Tabs */}
-      <div className="border-b border-[#e0e0e0]">
-        <nav className="flex gap-6">
-          {(
-            ['overview', 'messages', 'content', ...(showReport ? ['report'] : [])] as Tab[]
-          ).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 text-sm font-medium capitalize border-b-2 transition-colors ${
-                activeTab === tab
-                  ? 'border-[#0353a4] text-[#0353a4]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Metrics */}
-          {metrics && <CampaignMetrics metrics={metrics} campaignType={campaign.campaignType} />}
-
-          {/* Campaign Info */}
-          <Card padding="lg">
-            <h3 className="text-lg font-medium text-[#003559] mb-4">Campaign Details</h3>
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm text-gray-500">Type</dt>
-                <dd className="text-sm font-medium capitalize">{campaign.campaignType}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-gray-500">Target Audience</dt>
-                <dd className="text-sm font-medium">
-                  {campaign.targetAllMembers
-                    ? 'All Members'
-                    : `Members with status: ${campaign.membershipStatuses.join(', ')}`}
-                </dd>
-              </div>
-              {campaign.campaignType === 'email' && campaign.subject && (
-                <div className="col-span-2">
-                  <dt className="text-sm text-gray-500">Subject Line</dt>
-                  <dd className="text-sm font-medium">{campaign.subject}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-sm text-gray-500">Total Recipients</dt>
-                <dd className="text-sm font-medium">{campaign.totalRecipients.toLocaleString()}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-gray-500">Messages Sent</dt>
-                <dd className="text-sm font-medium">{campaign.totalSent.toLocaleString()}</dd>
-              </div>
-            </dl>
-          </Card>
-
-          {/* Timeline */}
-          <Card padding="lg">
-            <h3 className="text-lg font-medium text-[#003559] mb-4">Timeline</h3>
-            <div className="space-y-3">
-              <TimelineItem
-                label="Created"
-                date={campaign.createdAt}
-                completed
-              />
-              {campaign.scheduledAt && (
-                <TimelineItem
-                  label="Scheduled"
-                  date={campaign.scheduledAt}
-                  completed={!!campaign.startedAt}
-                />
-              )}
-              {campaign.startedAt && (
-                <TimelineItem
-                  label="Started Sending"
-                  date={campaign.startedAt}
-                  completed
-                />
-              )}
-              {campaign.completedAt && (
-                <TimelineItem
-                  label="Completed"
-                  date={campaign.completedAt}
-                  completed
-                />
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {activeTab === 'messages' && (
-        <MessageList campaignId={campaignId} />
-      )}
-
-      {activeTab === 'report' && showReport && (
-        <CampaignReportDashboard
-          campaignId={campaignId}
-          campaignType={campaign.campaignType}
-        />
-      )}
-
-      {activeTab === 'content' && (
-        <Card padding="lg">
-          <h3 className="text-lg font-medium text-[#003559] mb-4">Message Content</h3>
-          {campaign.campaignType === 'email' && campaign.subject && (
-            <div className="mb-4">
-              <label className="text-sm text-gray-500">Subject</label>
-              <p className="text-sm font-medium">{campaign.subject}</p>
-            </div>
-          )}
-          <div>
-            <label className="text-sm text-gray-500">Body</label>
-            <div className="mt-2 p-4 bg-[#f5f5f5] rounded-lg font-mono text-sm whitespace-pre-wrap">
-              {campaign.content}
-            </div>
-          </div>
-        </Card>
-      )}
+      <Tabs tabs={tabs} defaultTab="overview" />
 
       {/* Schedule Modal */}
-      {showScheduleModal && (
-        <ScheduleModal
-          onSchedule={handleSchedule}
-          onClose={() => setShowScheduleModal(false)}
-          loading={scheduleMutation.isPending}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onSchedule={handleSchedule}
+        onClose={() => setShowScheduleModal(false)}
+        loading={scheduleMutation.isPending}
+      />
+
+      {/* Send Test Modal */}
+      {campaign && (
+        <SendTestModal
+          isOpen={showSendTest}
+          campaignType={campaign.campaignType}
+          subject={campaign.subject || ''}
+          content={campaign.content}
+          onClose={() => setShowSendTest(false)}
         />
       )}
+
+      {/* Confirm Action Dialog */}
+      <ConfirmDialog
+        isOpen={confirmAction !== null}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+        title={confirmAction === 'cancel' ? 'Cancel Campaign' : 'Send Campaign Now'}
+        message={
+          confirmAction === 'cancel'
+            ? 'Are you sure you want to cancel this campaign? This action cannot be undone.'
+            : 'Are you sure you want to send this campaign immediately to all recipients?'
+        }
+        confirmLabel={confirmAction === 'cancel' ? 'Cancel Campaign' : 'Send Now'}
+        confirmVariant={confirmAction === 'cancel' ? 'danger' : 'primary'}
+        loading={cancelMutation.isPending || scheduleMutation.isPending}
+      />
     </div>
   );
 }
@@ -329,10 +338,12 @@ function TimelineItem({
 }
 
 function ScheduleModal({
+  isOpen,
   onSchedule,
   onClose,
   loading,
 }: {
+  isOpen: boolean;
   onSchedule: (scheduledAt: string) => void;
   onClose: () => void;
   loading: boolean;
@@ -350,38 +361,161 @@ function ScheduleModal({
   const minDateTime = new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold text-[#003559] mb-4">Schedule Campaign</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="schedule-datetime" className="block text-sm font-medium text-gray-700 mb-1">
-              Send Date & Time
-            </label>
-            <input
-              type="datetime-local"
-              id="schedule-datetime"
-              value={dateTime}
-              onChange={(e) => setDateTime(e.target.value)}
-              min={minDateTime}
-              className="w-full px-3 py-2 border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0353a4]"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Note: SMS campaigns will respect quiet hours (8 AM - 9 PM recipient timezone)
-            </p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Schedule Campaign"
+      size="sm"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" form="schedule-form" loading={loading}>
+            Schedule
+          </Button>
+        </>
+      }
+    >
+      <form id="schedule-form" onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="schedule-datetime" className="block text-sm font-medium text-gray-700 mb-1">
+            Send Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            id="schedule-datetime"
+            value={dateTime}
+            onChange={(e) => setDateTime(e.target.value)}
+            min={minDateTime}
+            className="w-full px-3 py-2 border border-[#e0e0e0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0353a4]"
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Note: SMS campaigns will respect quiet hours (8 AM - 9 PM recipient timezone)
+          </p>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function SendTestModal({
+  isOpen,
+  campaignType,
+  subject,
+  content,
+  onClose,
+}: {
+  isOpen: boolean;
+  campaignType: CampaignType;
+  subject: string;
+  content: string;
+  onClose: () => void;
+}) {
+  const [recipient, setRecipient] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const isEmail = campaignType === 'email';
+  const placeholder = isEmail ? 'test@example.com' : '+15551234567';
+  const label = isEmail ? 'Recipient Email' : 'Recipient Phone';
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipient.trim()) return;
+
+    setSending(true);
+    setResult(null);
+
+    try {
+      const testMessageId = crypto.randomUUID();
+
+      if (isEmail) {
+        const res = await emailService.sendSingle({
+          messageId: testMessageId,
+          to: recipient.trim(),
+          subject: `[TEST] ${subject}`,
+          html: content,
+        });
+        setResult({
+          success: res.success,
+          message: res.success ? 'Test email sent successfully!' : (res.error || 'Failed to send test email'),
+        });
+      } else {
+        const formatted = smsService.formatPhoneNumber(recipient.trim());
+        if (!formatted) {
+          setResult({ success: false, message: 'Invalid phone number. Use E.164 format (e.g., +15551234567).' });
+          setSending(false);
+          return;
+        }
+        const res = await smsService.sendSingle({
+          messageId: testMessageId,
+          to: formatted,
+          body: content,
+        });
+        setResult({
+          success: res.success,
+          message: res.success ? 'Test SMS sent successfully!' : (res.error || 'Failed to send test SMS'),
+        });
+      }
+    } catch (err) {
+      setResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to send test message',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Send Test Message"
+      size="sm"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={sending}>
+            {result?.success ? 'Done' : 'Cancel'}
+          </Button>
+          <Button type="submit" form="send-test-form" loading={sending}>
+            Send Test
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-gray-500 mb-4">
+        Send a test {isEmail ? 'email' : 'SMS'} to verify the content before sending to your audience.
+      </p>
+
+      <form id="send-test-form" onSubmit={handleSend}>
+        <div className="mb-4">
+          <Input
+            label={label}
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder={placeholder}
+            type={isEmail ? 'email' : 'tel'}
+            required
+          />
+        </div>
+
+        {result && (
+          <div
+            className={`p-3 rounded-lg text-sm ${
+              result.success
+                ? 'bg-[#2e7d32]/10 text-[#2e7d32] border border-[#2e7d32]/20'
+                : 'bg-[#d32f2f]/10 text-[#d32f2f] border border-[#d32f2f]/20'
+            }`}
+            role="alert"
+          >
+            {result.message}
           </div>
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={loading}>
-              Schedule
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        )}
+      </form>
+    </Modal>
   );
 }
 

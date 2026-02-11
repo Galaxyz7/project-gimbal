@@ -3,8 +3,8 @@
  * Step 7: Read-only summary before creating the data source
  */
 
-import type { DataSourceType, DataSourceConfig, ColumnConfig, ScheduleConfiguration, DatabaseCredentials } from '@/types/dataImport';
-import { SOURCE_TYPE_LABELS } from '@/constants/dataSources';
+import type { DataSourceType, DataSourceConfig, ColumnConfig, ScheduleConfiguration, DatabaseCredentials, DestinationType, FieldMapping } from '@/types/dataImport';
+import { SOURCE_TYPE_LABELS, DESTINATION_SCHEMAS } from '@/constants/dataSources';
 import { getScheduleDescription } from '@/services/data-sources/scheduleService';
 import { Badge } from '../common/Badge';
 
@@ -19,6 +19,8 @@ export interface ReviewStepProps {
   credentials: DatabaseCredentials;
   columns: ColumnConfig[];
   scheduleConfig: ScheduleConfiguration;
+  destinationType?: DestinationType | null;
+  fieldMappings?: FieldMapping[];
   className?: string;
 }
 
@@ -57,22 +59,30 @@ export function ReviewStep({
   credentials,
   columns,
   scheduleConfig,
+  destinationType,
+  fieldMappings = [],
   className = '',
 }: ReviewStepProps) {
   const includedColumns = columns.filter((c) => c.included);
   const totalRules = includedColumns.reduce((sum, col) => sum + col.cleaning_rules.length, 0);
   const scheduleDescription = getScheduleDescription(scheduleConfig);
+  const destSchema = destinationType
+    ? DESTINATION_SCHEMAS.find((s) => s.type === destinationType)
+    : null;
 
   return (
     <div className={`space-y-4 ${className}`}>
       <p className="text-sm text-gray-500">
-        Review the configuration before creating your data source.
+        Review the configuration before importing.
       </p>
 
       {/* General info */}
       <Section title="General">
         <DetailRow label="Name" value={name} />
         <DetailRow label="Source Type" value={SOURCE_TYPE_LABELS[sourceType] ?? sourceType} />
+        {destSchema && (
+          <DetailRow label="Destination" value={destSchema.label} />
+        )}
       </Section>
 
       {/* Connection details */}
@@ -112,6 +122,27 @@ export function ReviewStep({
           </div>
         )}
       </Section>
+
+      {/* Field Mappings */}
+      {fieldMappings.length > 0 && destSchema && (
+        <Section title="Field Mappings">
+          <DetailRow label="Mapped Fields" value={`${fieldMappings.length} of ${destSchema.requiredFields.length + destSchema.optionalFields.length}`} />
+          {fieldMappings.map((m) => (
+            <DetailRow
+              key={m.targetField}
+              label={m.targetField}
+              value={
+                <span className="flex items-center gap-2">
+                  <span className="text-gray-400">&larr;</span> {m.sourceColumn}
+                  {m.required && (
+                    <Badge variant="danger" size="sm">Required</Badge>
+                  )}
+                </span>
+              }
+            />
+          ))}
+        </Section>
+      )}
 
       {/* Schedule */}
       <Section title="Schedule">

@@ -45,7 +45,7 @@ npm run dev
 - **Charts**: Recharts
 - **Forms**: React Hook Form + Zod
 - **Messaging**: Twilio (SMS), SendGrid (Email)
-- **Testing**: Vitest, React Testing Library, Cypress
+- **Testing**: Vitest, React Testing Library
 
 ## Project Structure
 

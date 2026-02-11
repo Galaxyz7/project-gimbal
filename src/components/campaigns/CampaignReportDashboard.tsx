@@ -100,7 +100,7 @@ function SummaryCard({
   const colorClasses = {
     default: 'text-[#003559]',
     success: 'text-[#2e7d32]',
-    warning: 'text-[#ed6c02]',
+    warning: 'text-[#b45309]',
     danger: 'text-[#d32f2f]',
   };
 
@@ -175,18 +175,18 @@ export function CampaignReportDashboard({
   const { data: comparisonTimeline } = useCampaignTimeline(comparisonCampaignId ?? '');
 
   // Available campaigns for comparison (same type, sent/completed, excluding current)
-  const { data: allCampaigns } = useCampaigns({ campaignType });
+  const { data: allCampaignsData } = useCampaigns({ campaignType });
   const comparisonOptions = useMemo(() => {
     const opts = [{ value: '', label: 'None' }];
-    if (allCampaigns) {
-      for (const c of allCampaigns) {
+    if (allCampaignsData?.campaigns) {
+      for (const c of allCampaignsData.campaigns) {
         if (c.id === campaignId) continue;
         if (!['sent', 'completed', 'sending'].includes(c.status)) continue;
         opts.push({ value: c.id, label: c.name });
       }
     }
     return opts;
-  }, [allCampaigns, campaignId]);
+  }, [allCampaignsData, campaignId]);
 
   // ---------------------------------------------------------------------------
   // Chart data
@@ -253,7 +253,7 @@ export function CampaignReportDashboard({
     const data = [
       { name: 'Delivered', value: metrics.totalDelivered, color: '#2e7d32' },
       { name: 'Failed', value: metrics.totalFailed, color: '#d32f2f' },
-      { name: 'Bounced', value: metrics.totalBounced, color: '#ed6c02' },
+      { name: 'Bounced', value: metrics.totalBounced, color: '#b45309' },
     ];
     const pending = metrics.totalRecipients - metrics.totalSent;
     if (pending > 0) {
@@ -267,7 +267,7 @@ export function CampaignReportDashboard({
     const colors: Record<string, string> = {
       desktop: '#0353a4',
       mobile: '#2e7d32',
-      tablet: '#ed6c02',
+      tablet: '#b45309',
       unknown: '#9e9e9e',
     };
     return deviceBreakdown.map((d) => ({
