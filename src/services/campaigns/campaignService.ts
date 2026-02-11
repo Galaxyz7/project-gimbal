@@ -67,6 +67,13 @@ function transformCampaign(row: Record<string, unknown>): Campaign {
     totalBounced: row.total_bounced as number,
     totalUnsubscribed: row.total_unsubscribed as number,
     metadata: (row.metadata as Record<string, unknown>) ?? {},
+    abTestEnabled: (row.ab_test_enabled as boolean) ?? false,
+    abVariantBSubject: (row.ab_variant_b_subject as string | null) ?? null,
+    abVariantBContent: (row.ab_variant_b_content as string | null) ?? null,
+    abTestMetric: (row.ab_test_metric as Campaign['abTestMetric']) ?? null,
+    abTestSamplePct: (row.ab_test_sample_pct as number) ?? 50,
+    abTestDurationHours: (row.ab_test_duration_hours as number) ?? 24,
+    abTestWinner: (row.ab_test_winner as Campaign['abTestWinner']) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -242,6 +249,12 @@ export async function createCampaign(input: CreateCampaignInput): Promise<Campai
       required_tags: input.requiredTags || null,
       excluded_tags: input.excludedTags || null,
       metadata: input.metadata || {},
+      ab_test_enabled: input.abTestEnabled || false,
+      ab_variant_b_subject: input.abVariantBSubject || null,
+      ab_variant_b_content: input.abVariantBContent || null,
+      ab_test_metric: input.abTestMetric || null,
+      ab_test_sample_pct: input.abTestSamplePct ?? 50,
+      ab_test_duration_hours: input.abTestDurationHours ?? 24,
     })
     .select()
     .single();
@@ -274,6 +287,12 @@ export async function updateCampaign(id: string, input: UpdateCampaignInput): Pr
   if (input.requiredTags !== undefined) updateData.required_tags = input.requiredTags;
   if (input.excludedTags !== undefined) updateData.excluded_tags = input.excludedTags;
   if (input.metadata !== undefined) updateData.metadata = input.metadata;
+  if (input.abTestEnabled !== undefined) updateData.ab_test_enabled = input.abTestEnabled;
+  if (input.abVariantBSubject !== undefined) updateData.ab_variant_b_subject = input.abVariantBSubject;
+  if (input.abVariantBContent !== undefined) updateData.ab_variant_b_content = input.abVariantBContent;
+  if (input.abTestMetric !== undefined) updateData.ab_test_metric = input.abTestMetric;
+  if (input.abTestSamplePct !== undefined) updateData.ab_test_sample_pct = input.abTestSamplePct;
+  if (input.abTestDurationHours !== undefined) updateData.ab_test_duration_hours = input.abTestDurationHours;
 
   const { data, error } = await supabase
     .from('campaigns')
@@ -480,6 +499,12 @@ export async function duplicateCampaign(campaignId: string): Promise<Campaign> {
     membershipStatuses: source.membershipStatuses,
     requiredTags: source.requiredTags,
     excludedTags: source.excludedTags,
+    abTestEnabled: source.abTestEnabled,
+    abVariantBSubject: source.abVariantBSubject,
+    abVariantBContent: source.abVariantBContent,
+    abTestMetric: source.abTestMetric,
+    abTestSamplePct: source.abTestSamplePct,
+    abTestDurationHours: source.abTestDurationHours,
   });
 }
 

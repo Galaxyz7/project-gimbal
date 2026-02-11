@@ -579,6 +579,7 @@ export interface MemberNote {
   noteType: NoteType;
   content: string;
   isPinned: boolean;
+  dueDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -588,12 +589,14 @@ export interface CreateNoteInput {
   noteType?: NoteType;
   content: string;
   isPinned?: boolean;
+  dueDate?: string;
 }
 
 export interface UpdateNoteInput {
   noteType?: NoteType;
   content?: string;
   isPinned?: boolean;
+  dueDate?: string | null;
 }
 
 // =============================================================================

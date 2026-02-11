@@ -7,7 +7,7 @@
  * - Template performance stats (Item 7)
  */
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
@@ -17,6 +17,7 @@ import { Select } from '../common/Select';
 import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../common/EmptyState';
 import { EmailPreviewModal } from './EmailPreviewModal';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useTemplates, useDuplicateTemplate, useAllTemplateStats } from '@/services/campaigns';
 import type { CampaignTemplate, CampaignType, TemplateCategory, TemplateStats } from '@/types/campaign';
 import { TEMPLATE_CATEGORY_LABELS } from '@/types/campaign';
@@ -43,21 +44,6 @@ const CATEGORY_FILTER_OPTIONS = [
   { value: '', label: 'All Categories' },
   ...Object.entries(TEMPLATE_CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
 ];
-
-// =============================================================================
-// Hooks
-// =============================================================================
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 // =============================================================================
 // Sub-components

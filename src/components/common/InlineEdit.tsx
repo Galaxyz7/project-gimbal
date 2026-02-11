@@ -40,7 +40,7 @@ export function InlineEdit({
   className = '',
 }: InlineEditProps) {
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
-  const { isEditing, editValue, setEditValue, isSaving, startEdit, save, cancel, handleKeyDown } =
+  const { isEditing, editValue, setEditValue, isSaving, error, startEdit, cancel, handleKeyDown } =
     useInlineEdit({ onSave });
 
   // Focus input when entering edit mode
@@ -85,18 +85,21 @@ export function InlineEdit({
     }
 
     return (
-      <input
-        ref={inputRef as React.RefObject<HTMLInputElement>}
-        type="text"
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={save}
-        onKeyDown={handleKeyDown}
-        onClick={(e) => e.stopPropagation()}
-        disabled={isSaving}
-        className="text-sm border border-[#0353a4] rounded px-1.5 py-0.5 w-full bg-white text-[#003559] focus:outline-none focus:ring-1 focus:ring-[#0353a4]"
-        aria-label="Edit value"
-      />
+      <div>
+        <input
+          ref={inputRef as React.RefObject<HTMLInputElement>}
+          type="text"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={cancel}
+          onKeyDown={handleKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          disabled={isSaving}
+          className="text-sm border border-[#0353a4] rounded px-1.5 py-0.5 w-full bg-white text-[#003559] focus:outline-none focus:ring-1 focus:ring-[#0353a4]"
+          aria-label="Edit value"
+        />
+        {error && <span className="text-xs text-[#d32f2f] mt-0.5 block">{error}</span>}
+      </div>
     );
   }
 
@@ -114,6 +117,7 @@ export function InlineEdit({
       {isSaving && (
         <span className="ml-1 inline-block w-3 h-3 border-2 border-[#0353a4] border-t-transparent rounded-full animate-spin" />
       )}
+      {error && !isEditing && <span className="text-xs text-[#d32f2f] ml-1">{error}</span>}
     </button>
   );
 }

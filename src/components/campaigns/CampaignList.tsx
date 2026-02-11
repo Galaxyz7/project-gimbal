@@ -18,6 +18,7 @@ import { Tooltip } from '../common/Tooltip';
 import { InlineEdit } from '../common/InlineEdit';
 import { useCampaigns, useDuplicateCampaign, useDeleteCampaign, useUpdateCampaign } from '@/services/campaigns';
 import { useSegments } from '@/services/segments';
+import { useDebounce } from '@/hooks/useDebounce';
 import type { Campaign, CampaignStatus, CampaignType } from '@/types/campaign';
 import type { DropdownEntry } from '../common/Dropdown';
 
@@ -219,7 +220,6 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<CampaignType | ''>('');
-  const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Mutations
@@ -232,19 +232,15 @@ export function CampaignList({ siteId, onSelect, onCreate, className = '' }: Cam
   }, [updateMutation]);
 
   // Debounced search
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const searchTimeout = useMemo(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(0);
-    }, 300);
-    return timeout;
-  }, [searchTerm]);
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
-  // Cleanup timeout
-  useMemo(() => {
-    return () => clearTimeout(searchTimeout);
-  }, [searchTimeout]);
+  // Pagination — reset to page 0 when search term changes
+  const [page, setPage] = useState(0);
+  const [prevSearch, setPrevSearch] = useState(debouncedSearch);
+  if (prevSearch !== debouncedSearch) {
+    setPrevSearch(debouncedSearch);
+    setPage(0);
+  }
 
   // Fetch segments for audience labels
   const { data: segments } = useSegments();

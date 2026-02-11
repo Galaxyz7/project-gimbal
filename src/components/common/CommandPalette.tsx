@@ -5,7 +5,7 @@
  * Searches members, campaigns, and segments in parallel.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { searchAll } from '@/services/search/globalSearchService';
@@ -182,21 +182,32 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   // Group results by entity type for display
-  const groupedResults = query.trim()
-    ? (['member', 'campaign', 'segment'] as const)
-        .map((type) => ({
-          type,
-          label: ENTITY_LABELS[type],
-          items: results.filter((r) => r.entityType === type),
-        }))
-        .filter((g) => g.items.length > 0)
-    : null;
+  const groupedResults = useMemo(() => {
+    if (!query.trim()) return null;
+    return (['member', 'campaign', 'segment'] as const)
+      .map((type) => ({
+        type,
+        label: ENTITY_LABELS[type],
+        items: results.filter((r) => r.entityType === type),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [query, results]);
 
-  // Calculate flat index for keyboard nav in grouped view
-  let flatIndex = 0;
+  // Pre-compute flat index map for keyboard nav in grouped view
+  const flatIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!groupedResults) return map;
+    let idx = 0;
+    for (const group of groupedResults) {
+      for (const item of group.items) {
+        map.set(item.id, idx++);
+      }
+    }
+    return map;
+  }, [groupedResults]);
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div
@@ -269,7 +280,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 <div key={group.type}>
                   <p className="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase">{group.label}</p>
                   {group.items.map((result) => {
-                    const currentIndex = flatIndex++;
+                    const currentIndex = flatIndexMap.get(result.id) ?? 0;
                     return (
                       <button
                         key={result.id}

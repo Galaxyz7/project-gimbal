@@ -20,6 +20,7 @@ function transformNote(row: any): MemberNote {
     noteType: row.note_type,
     content: row.content,
     isPinned: row.is_pinned,
+    dueDate: row.due_date ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -60,6 +61,7 @@ export const memberNoteService = {
         note_type: input.noteType ?? 'note',
         content: input.content,
         is_pinned: input.isPinned ?? false,
+        ...(input.dueDate ? { due_date: input.dueDate } : {}),
       })
       .select()
       .single();
@@ -76,6 +78,7 @@ export const memberNoteService = {
     if (input.noteType !== undefined) updates.note_type = input.noteType;
     if (input.content !== undefined) updates.content = input.content;
     if (input.isPinned !== undefined) updates.is_pinned = input.isPinned;
+    if (input.dueDate !== undefined) updates.due_date = input.dueDate;
 
     const { data, error } = await supabase
       .from('member_notes')

@@ -51,10 +51,15 @@ const campaignSchema = z
     segmentId: z.string().optional().nullable(),
     targetAllMembers: z.boolean(),
     membershipStatuses: z.array(z.string()),
+    abTestEnabled: z.boolean(),
+    abVariantBSubject: z.string().max(255).optional().nullable(),
+    abVariantBContent: z.string().optional().nullable(),
+    abTestMetric: z.enum(['open_rate', 'click_rate']).optional().nullable(),
+    abTestSamplePct: z.number().min(10).max(50),
+    abTestDurationHours: z.number(),
   })
   .refine(
     (data) => {
-      // Email requires subject
       if (data.campaignType === 'email' && !data.subject) {
         return false;
       }
@@ -63,6 +68,18 @@ const campaignSchema = z
     {
       message: 'Subject is required for email campaigns',
       path: ['subject'],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.abTestEnabled && !data.abVariantBSubject) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Variant B subject is required when A/B testing is enabled',
+      path: ['abVariantBSubject'],
     }
   );
 
@@ -129,6 +146,12 @@ export function CampaignForm({
       segmentId: null,
       targetAllMembers: false,
       membershipStatuses: ['active'],
+      abTestEnabled: false,
+      abVariantBSubject: '',
+      abVariantBContent: '',
+      abTestMetric: 'open_rate',
+      abTestSamplePct: 50,
+      abTestDurationHours: 24,
     },
   });
 
@@ -139,6 +162,7 @@ export function CampaignForm({
   const watchedSiteId = watch('siteId');
   const watchedTargetAll = watch('targetAllMembers');
   const watchedStatuses = watch('membershipStatuses');
+  const watchedAbTest = watch('abTestEnabled');
 
   // Audience estimation
   const { data: segments } = useSegments();
@@ -212,6 +236,12 @@ export function CampaignForm({
         segmentId: existingCampaign.segmentId || null,
         targetAllMembers: existingCampaign.targetAllMembers,
         membershipStatuses: existingCampaign.membershipStatuses,
+        abTestEnabled: existingCampaign.abTestEnabled,
+        abVariantBSubject: existingCampaign.abVariantBSubject || '',
+        abVariantBContent: existingCampaign.abVariantBContent || '',
+        abTestMetric: existingCampaign.abTestMetric || 'open_rate',
+        abTestSamplePct: existingCampaign.abTestSamplePct,
+        abTestDurationHours: existingCampaign.abTestDurationHours,
       });
     }
   }, [existingCampaign, isEdit, reset]);
@@ -267,6 +297,12 @@ export function CampaignForm({
             segmentId: data.segmentId || null,
             targetAllMembers: data.targetAllMembers,
             membershipStatuses: data.membershipStatuses,
+            abTestEnabled: data.abTestEnabled,
+            abVariantBSubject: data.abTestEnabled ? data.abVariantBSubject || null : null,
+            abVariantBContent: data.abTestEnabled ? data.abVariantBContent || null : null,
+            abTestMetric: data.abTestEnabled ? data.abTestMetric || null : null,
+            abTestSamplePct: data.abTestSamplePct,
+            abTestDurationHours: data.abTestDurationHours,
           },
         });
       } else {
@@ -282,6 +318,12 @@ export function CampaignForm({
           segmentId: data.segmentId || null,
           targetAllMembers: data.targetAllMembers,
           membershipStatuses: data.membershipStatuses,
+          abTestEnabled: data.abTestEnabled,
+          abVariantBSubject: data.abTestEnabled ? data.abVariantBSubject || null : null,
+          abVariantBContent: data.abTestEnabled ? data.abVariantBContent || null : null,
+          abTestMetric: data.abTestEnabled ? data.abTestMetric || null : null,
+          abTestSamplePct: data.abTestSamplePct,
+          abTestDurationHours: data.abTestDurationHours,
         });
       }
 
@@ -448,6 +490,133 @@ export function CampaignForm({
             </Button>
           )}
         </div>
+
+        {/* A/B Test Section (Email only) */}
+        {watchedType === 'email' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-gray-700 border-b border-[#e0e0e0] pb-2">
+              A/B Testing
+            </h3>
+
+            {/* Toggle */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="abTestEnabled"
+                {...register('abTestEnabled')}
+                className="rounded border-[#e0e0e0] text-[#0353a4] focus:ring-[#0353a4]"
+              />
+              <label htmlFor="abTestEnabled" className="text-sm text-gray-700">
+                Enable A/B testing
+              </label>
+            </div>
+
+            {watchedAbTest && (
+              <div className="space-y-4 pl-6 border-l-2 border-[#0353a4]/20">
+                <p className="text-xs text-gray-500">
+                  Test two variants of your email. A sample of recipients will receive each variant,
+                  and the winner can be sent to the rest.
+                </p>
+
+                {/* Variant B Subject */}
+                <div>
+                  <label htmlFor="abVariantBSubject" className="block text-sm font-medium text-gray-700 mb-1">
+                    Variant B Subject Line *
+                  </label>
+                  <Input
+                    id="abVariantBSubject"
+                    {...register('abVariantBSubject')}
+                    placeholder="Enter variant B subject"
+                    error={errors.abVariantBSubject?.message}
+                  />
+                </div>
+
+                {/* Variant B Content */}
+                <div>
+                  <label htmlFor="abVariantBContent" className="block text-sm font-medium text-gray-700 mb-1">
+                    Variant B Content
+                  </label>
+                  <Textarea
+                    id="abVariantBContent"
+                    {...register('abVariantBContent')}
+                    placeholder="Leave empty to use same content as Variant A"
+                    rows={4}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Optional. If left empty, only the subject line will differ between variants.
+                  </p>
+                </div>
+
+                {/* Test Parameters */}
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Winning Metric */}
+                  <div>
+                    <label htmlFor="abTestMetric" className="block text-sm font-medium text-gray-700 mb-1">
+                      Winning Metric
+                    </label>
+                    <Select
+                      id="abTestMetric"
+                      {...register('abTestMetric')}
+                      options={[
+                        { value: 'open_rate', label: 'Open Rate' },
+                        { value: 'click_rate', label: 'Click Rate' },
+                      ]}
+                    />
+                  </div>
+
+                  {/* Sample Size */}
+                  <div>
+                    <label htmlFor="abTestSamplePct" className="block text-sm font-medium text-gray-700 mb-1">
+                      Test Sample %
+                    </label>
+                    <Select
+                      id="abTestSamplePct"
+                      {...register('abTestSamplePct', { valueAsNumber: true })}
+                      options={[
+                        { value: '10', label: '10%' },
+                        { value: '20', label: '20%' },
+                        { value: '30', label: '30%' },
+                        { value: '40', label: '40%' },
+                        { value: '50', label: '50%' },
+                      ]}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Split evenly between A and B
+                    </p>
+                  </div>
+
+                  {/* Test Duration */}
+                  <div>
+                    <label htmlFor="abTestDurationHours" className="block text-sm font-medium text-gray-700 mb-1">
+                      Test Duration
+                    </label>
+                    <Select
+                      id="abTestDurationHours"
+                      {...register('abTestDurationHours', { valueAsNumber: true })}
+                      options={[
+                        { value: '4', label: '4 hours' },
+                        { value: '12', label: '12 hours' },
+                        { value: '24', label: '24 hours' },
+                        { value: '48', label: '48 hours' },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {/* A/B Test Info */}
+                <div className="flex items-start gap-2 p-3 bg-[#b9d6f2]/20 border border-[#b9d6f2]/40 rounded-lg">
+                  <svg className="w-4 h-4 text-[#006daa] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-xs text-[#006daa]">
+                    {watch('abTestSamplePct')}% of recipients will be split evenly between Variant A and B.
+                    After {watch('abTestDurationHours')} hours, the winning variant (by {watch('abTestMetric') === 'click_rate' ? 'click rate' : 'open rate'}) can be sent to the remaining {100 - (watch('abTestSamplePct') || 50)}%.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Targeting Section */}
         <div className="space-y-4">

@@ -46,6 +46,13 @@ export interface Campaign {
   totalBounced: number;
   totalUnsubscribed: number;
   metadata: Record<string, unknown>;
+  abTestEnabled: boolean;
+  abVariantBSubject: string | null;
+  abVariantBContent: string | null;
+  abTestMetric: 'open_rate' | 'click_rate' | null;
+  abTestSamplePct: number;
+  abTestDurationHours: number;
+  abTestWinner: 'a' | 'b' | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +82,12 @@ export interface CreateCampaignInput {
   requiredTags?: string[] | null;
   excludedTags?: string[] | null;
   metadata?: Record<string, unknown>;
+  abTestEnabled?: boolean;
+  abVariantBSubject?: string | null;
+  abVariantBContent?: string | null;
+  abTestMetric?: 'open_rate' | 'click_rate' | null;
+  abTestSamplePct?: number;
+  abTestDurationHours?: number;
 }
 
 export interface UpdateCampaignInput extends Partial<Omit<CreateCampaignInput, 'campaignType'>> {

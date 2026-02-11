@@ -322,6 +322,13 @@ export const mockCampaignRow = {
   total_bounced: 0,
   total_unsubscribed: 0,
   metadata: {},
+  ab_test_enabled: false,
+  ab_variant_b_subject: null,
+  ab_variant_b_content: null,
+  ab_test_metric: null,
+  ab_test_sample_pct: 50,
+  ab_test_duration_hours: 24,
+  ab_test_winner: null,
   created_at: '2025-06-01T00:00:00Z',
   updated_at: '2025-06-01T00:00:00Z',
 };

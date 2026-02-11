@@ -48,6 +48,7 @@ const mockNoteRow = {
   note_type: 'call',
   content: 'Discussed renewal options',
   is_pinned: false,
+  due_date: null,
   created_at: '2025-03-10T10:00:00Z',
   updated_at: '2025-03-10T10:00:00Z',
 };
@@ -59,6 +60,7 @@ const mockNoteRow2 = {
   note_type: 'follow_up',
   content: 'Need to check back',
   is_pinned: true,
+  due_date: '2025-03-20',
   created_at: '2025-03-15T14:00:00Z',
   updated_at: '2025-03-15T14:00:00Z',
 };
@@ -107,6 +109,7 @@ describe('memberNoteService', () => {
         noteType: 'call',
         content: 'Discussed renewal options',
         isPinned: false,
+        dueDate: null,
         createdAt: '2025-03-10T10:00:00Z',
         updatedAt: '2025-03-10T10:00:00Z',
       });

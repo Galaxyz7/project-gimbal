@@ -221,7 +221,12 @@ export function CampaignCalendar({ className = '' }: CampaignCalendarProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleToday}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToday}
+            disabled={month === today.getMonth() && year === today.getFullYear()}
+          >
             Today
           </Button>
         </div>

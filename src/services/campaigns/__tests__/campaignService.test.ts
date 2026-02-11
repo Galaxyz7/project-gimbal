@@ -113,6 +113,39 @@ describe('campaignService', () => {
       const result = await getCampaignById('nonexistent');
       expect(result).toBeNull();
     });
+
+    it('should transform A/B test fields', async () => {
+      const abRow = {
+        ...mockCampaignRow,
+        ab_test_enabled: true,
+        ab_variant_b_subject: 'Alt Subject',
+        ab_variant_b_content: '<p>Alt content</p>',
+        ab_test_metric: 'open_rate',
+        ab_test_sample_pct: 30,
+        ab_test_duration_hours: 12,
+        ab_test_winner: 'a',
+      };
+      mockSingle.mockResolvedValue({ data: abRow, error: null });
+      const result = await getCampaignById(TEST_IDS.campaignId);
+      expect(result).not.toBeNull();
+      expect(result!.abTestEnabled).toBe(true);
+      expect(result!.abVariantBSubject).toBe('Alt Subject');
+      expect(result!.abVariantBContent).toBe('<p>Alt content</p>');
+      expect(result!.abTestMetric).toBe('open_rate');
+      expect(result!.abTestSamplePct).toBe(30);
+      expect(result!.abTestDurationHours).toBe(12);
+      expect(result!.abTestWinner).toBe('a');
+    });
+
+    it('should default A/B fields when not present', async () => {
+      mockSingle.mockResolvedValue({ data: mockCampaignRow, error: null });
+      const result = await getCampaignById(TEST_IDS.campaignId);
+      expect(result!.abTestEnabled).toBe(false);
+      expect(result!.abVariantBSubject).toBeNull();
+      expect(result!.abTestWinner).toBeNull();
+      expect(result!.abTestSamplePct).toBe(50);
+      expect(result!.abTestDurationHours).toBe(24);
+    });
   });
 
   describe('createCampaign', () => {

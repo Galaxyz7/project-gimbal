@@ -144,6 +144,79 @@ export function CampaignDetail({
             </dl>
           </Card>
 
+          {campaign.abTestEnabled && (
+            <Card padding="lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-[#003559]">A/B Test</h3>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>Metric: {campaign.abTestMetric === 'click_rate' ? 'Click Rate' : 'Open Rate'}</span>
+                  <span className="text-gray-300">|</span>
+                  <span>Sample: {campaign.abTestSamplePct}%</span>
+                  <span className="text-gray-300">|</span>
+                  <span>Duration: {campaign.abTestDurationHours}h</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Variant A */}
+                <div className={`p-4 rounded-lg border-2 ${campaign.abTestWinner === 'a' ? 'border-[#2e7d32] bg-[#2e7d32]/5' : 'border-[#e0e0e0]'}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge variant={campaign.abTestWinner === 'a' ? 'success' : 'default'}>
+                      Variant A
+                    </Badge>
+                    {campaign.abTestWinner === 'a' && (
+                      <Badge variant="success">Winner</Badge>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <dt className="text-xs text-gray-500">Subject</dt>
+                      <dd className="text-sm font-medium">{campaign.subject}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500">Content Preview</dt>
+                      <dd className="text-xs text-gray-600 mt-1 p-2 bg-[#f5f5f5] rounded font-mono line-clamp-3">
+                        {campaign.content.slice(0, 200)}
+                        {campaign.content.length > 200 ? '...' : ''}
+                      </dd>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variant B */}
+                <div className={`p-4 rounded-lg border-2 ${campaign.abTestWinner === 'b' ? 'border-[#2e7d32] bg-[#2e7d32]/5' : 'border-[#e0e0e0]'}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge variant={campaign.abTestWinner === 'b' ? 'success' : 'default'}>
+                      Variant B
+                    </Badge>
+                    {campaign.abTestWinner === 'b' && (
+                      <Badge variant="success">Winner</Badge>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <dt className="text-xs text-gray-500">Subject</dt>
+                      <dd className="text-sm font-medium">{campaign.abVariantBSubject}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500">Content Preview</dt>
+                      <dd className="text-xs text-gray-600 mt-1 p-2 bg-[#f5f5f5] rounded font-mono line-clamp-3">
+                        {(campaign.abVariantBContent || campaign.content).slice(0, 200)}
+                        {(campaign.abVariantBContent || campaign.content).length > 200 ? '...' : ''}
+                      </dd>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!campaign.abTestWinner && (campaign.status === 'sending' || campaign.status === 'sent') && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  Winner will be determined after the {campaign.abTestDurationHours}-hour test period.
+                </p>
+              )}
+            </Card>
+          )}
+
           <Card padding="lg">
             <h3 className="text-lg font-medium text-[#003559] mb-4">Timeline</h3>
             <div className="space-y-3">

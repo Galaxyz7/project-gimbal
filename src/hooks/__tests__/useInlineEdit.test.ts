@@ -33,17 +33,22 @@ describe('useInlineEdit', () => {
       expect(result.current.editValue).toBe('Hello World');
     });
 
-    it('should clear previous error', () => {
+    it('should clear previous error on new edit', async () => {
       const failSave = vi.fn().mockRejectedValue(new Error('fail'));
       const { result } = renderHook(() => useInlineEdit({ onSave: failSave }));
 
-      // Trigger an error first
+      // Trigger an error via failed save
       act(() => {
         result.current.startEdit('test');
       });
 
-      // Save will fail, triggering error state
-      // Then startEdit again should clear the error
+      await act(async () => {
+        await result.current.save();
+      });
+
+      expect(result.current.error).toBe('fail');
+
+      // Starting a new edit should clear the error
       act(() => {
         result.current.startEdit('new value');
       });

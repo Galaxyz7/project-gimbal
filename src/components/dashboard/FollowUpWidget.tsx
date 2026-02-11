@@ -3,12 +3,14 @@
  * Shows high-value members who haven't visited recently and need outreach.
  */
 
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { Skeleton } from '../Skeleton';
 import { useFollowUpMembers } from '@/services/analytics';
+import { useCreateNote } from '@/services/members/useMemberNotes';
 
 // =============================================================================
 // Component
@@ -21,6 +23,24 @@ export interface FollowUpWidgetProps {
 export function FollowUpWidget({ className = '' }: FollowUpWidgetProps) {
   const navigate = useNavigate();
   const { data: members, isLoading } = useFollowUpMembers(5);
+  const createNote = useCreateNote();
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+
+  const handleContacted = useCallback((memberId: string) => {
+    setDismissedIds((prev) => new Set(prev).add(memberId));
+    createNote.mutate(
+      { memberId, noteType: 'call', content: 'Contacted from dashboard follow-up widget' },
+      {
+        onError: () => {
+          setDismissedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(memberId);
+            return next;
+          });
+        },
+      }
+    );
+  }, [createNote]);
 
   if (isLoading) {
     return (
@@ -35,7 +55,9 @@ export function FollowUpWidget({ className = '' }: FollowUpWidgetProps) {
     );
   }
 
-  if (!members || members.length === 0) {
+  const visibleMembers = members?.filter((m) => !dismissedIds.has(m.id)) ?? [];
+
+  if (visibleMembers.length === 0) {
     return (
       <Card padding="lg" className={className}>
         <h3 className="text-lg font-medium text-[#003559] mb-3">Follow-Ups</h3>
@@ -59,7 +81,7 @@ export function FollowUpWidget({ className = '' }: FollowUpWidgetProps) {
       </div>
 
       <div className="space-y-3">
-        {members.map((member) => {
+        {visibleMembers.map((member) => {
           const name = member.firstName || member.lastName
             ? `${member.firstName || ''} ${member.lastName || ''}`.trim()
             : 'Unknown';
@@ -116,6 +138,17 @@ export function FollowUpWidget({ className = '' }: FollowUpWidgetProps) {
                     </svg>
                   </a>
                 )}
+                <button
+                  type="button"
+                  onClick={() => handleContacted(member.id)}
+                  className="p-1 text-gray-400 hover:text-[#2e7d32] transition-colors"
+                  title="Mark as contacted"
+                  aria-label={`Mark ${name} as contacted`}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
             </div>
           );

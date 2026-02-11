@@ -51,6 +51,7 @@ const mockNote = {
   noteType: 'note' as const,
   content: 'Test note',
   isPinned: false,
+  dueDate: null,
   createdAt: '2025-03-10T10:00:00Z',
   updatedAt: '2025-03-10T10:00:00Z',
 };

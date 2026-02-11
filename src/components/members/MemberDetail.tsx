@@ -15,6 +15,7 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { Tabs } from '../common/Tabs';
 import type { Tab } from '../common/Tabs';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { buildMemberTimeline } from '@/utils/memberTimeline';
 import type { TimelineEvent } from '@/utils/memberTimeline';
 
@@ -772,17 +773,27 @@ function NotesTab({ memberId }: { memberId: string }) {
 
   const [content, setContent] = useState('');
   const [noteType, setNoteType] = useState<NoteType>('note');
+  const [dueDate, setDueDate] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     createNote.mutate(
-      { memberId, content: content.trim(), noteType },
+      {
+        memberId,
+        content: content.trim(),
+        noteType,
+        ...(noteType === 'follow_up' && dueDate ? { dueDate } : {}),
+      },
       {
         onSuccess: () => {
           setContent('');
           setNoteType('note');
+          setDueDate('');
         },
       }
     );
@@ -793,7 +804,29 @@ function NotesTab({ memberId }: { memberId: string }) {
   };
 
   const handleDelete = (noteId: string) => {
-    deleteNote.mutate(noteId);
+    setPendingDeleteId(noteId);
+  };
+
+  const confirmDelete = () => {
+    if (pendingDeleteId) {
+      deleteNote.mutate(pendingDeleteId, {
+        onSettled: () => setPendingDeleteId(null),
+      });
+    }
+  };
+
+  const handleStartEdit = (noteId: string, currentContent: string) => {
+    setEditingNoteId(noteId);
+    setEditContent(currentContent);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingNoteId && editContent.trim()) {
+      updateNote.mutate(
+        { noteId: editingNoteId, input: { content: editContent.trim() } },
+        { onSuccess: () => setEditingNoteId(null) }
+      );
+    }
   };
 
   return (
@@ -822,6 +855,18 @@ function NotesTab({ memberId }: { memberId: string }) {
             className="w-full border border-[#e0e0e0] rounded-lg px-3 py-2 text-sm text-[#003559] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0353a4] resize-none"
             aria-label="Note content"
           />
+          {noteType === 'follow_up' && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="note-due-date" className="text-sm text-[#003559]">Due date:</label>
+              <input
+                id="note-due-date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="border border-[#e0e0e0] rounded-lg px-3 py-1.5 text-sm text-[#003559] focus:outline-none focus:ring-2 focus:ring-[#0353a4]"
+              />
+            </div>
+          )}
           <div className="flex justify-end">
             <Button
               type="submit"
@@ -850,13 +895,21 @@ function NotesTab({ memberId }: { memberId: string }) {
                 className={`p-3 rounded-lg border ${note.isPinned ? 'border-[#b9d6f2] bg-[#f0f7ff]' : 'border-[#e0e0e0] bg-white'}`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={NOTE_TYPE_VARIANTS[note.noteType]} size="sm">
                       {NOTE_TYPE_LABELS[note.noteType]}
                     </Badge>
                     {note.isPinned && (
                       <span className="text-xs text-[#0353a4] font-medium">Pinned</span>
                     )}
+                    {note.dueDate && (() => {
+                      const isPastDue = new Date(note.dueDate) < new Date(new Date().toISOString().split('T')[0]);
+                      return (
+                        <Badge variant={isPastDue ? 'danger' : 'warning'} size="sm">
+                          Due {new Date(note.dueDate).toLocaleDateString([], { dateStyle: 'medium' })}
+                        </Badge>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -873,6 +926,17 @@ function NotesTab({ memberId }: { memberId: string }) {
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleStartEdit(note.id, note.content)}
+                      className="p-1 text-gray-400 hover:text-[#006daa] transition-colors"
+                      title="Edit note"
+                      aria-label="Edit note"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDelete(note.id)}
                       className="p-1 text-gray-400 hover:text-[#d32f2f] transition-colors"
                       title="Delete note"
@@ -884,15 +948,46 @@ function NotesTab({ memberId }: { memberId: string }) {
                     </button>
                   </div>
                 </div>
-                <p className="mt-2 text-sm text-[#003559] whitespace-pre-wrap">{note.content}</p>
+                {editingNoteId === note.id ? (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={3}
+                      className="w-full border border-[#e0e0e0] rounded-lg px-3 py-2 text-sm text-[#003559] focus:outline-none focus:ring-2 focus:ring-[#0353a4] resize-none"
+                      aria-label="Edit note content"
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || updateNote.isPending}>
+                        {updateNote.isPending ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditingNoteId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-[#003559] whitespace-pre-wrap">{note.content}</p>
+                )}
                 <p className="mt-2 text-xs text-gray-400">
                   {new Date(note.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  {note.updatedAt !== note.createdAt && ' (edited)'}
                 </p>
               </div>
             ))}
           </div>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This cannot be undone."
+        confirmVariant="danger"
+        loading={deleteNote.isPending}
+      />
     </Card>
   );
 }

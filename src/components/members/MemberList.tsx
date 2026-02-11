@@ -14,6 +14,7 @@ import { Skeleton } from '../Skeleton';
 import { EmptyState } from '../common/EmptyState';
 import { Dropdown } from '../common/Dropdown';
 import { SiteSelector } from './SiteSelector';
+import { useDebounce } from '@/hooks/useDebounce';
 import { downloadCsv } from '@/utils/csvExport';
 import type { CsvColumn } from '@/utils/csvExport';
 import type { DropdownEntry } from '../common/Dropdown';
@@ -91,6 +92,14 @@ const COLUMN_DEFS: ColumnDef[] = [
 ];
 
 // =============================================================================
+const INLINE_STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'pending', label: 'Pending' },
+];
+
 // Sub-components
 // =============================================================================
 
@@ -104,21 +113,6 @@ interface MemberRowProps {
 }
 
 function MemberRow({ member, onSelect, selected, onToggle, isVisible, onInlineEdit }: MemberRowProps) {
-  const statusBadge = useMemo(() => {
-    const variants: Record<MembershipStatus, 'success' | 'warning' | 'danger' | 'default' | 'secondary'> = {
-      active: 'success',
-      expired: 'warning',
-      cancelled: 'danger',
-      suspended: 'danger',
-      pending: 'default',
-    };
-    return (
-      <Badge variant={variants[member.membershipStatus]} size="sm">
-        {member.membershipStatus}
-      </Badge>
-    );
-  }, [member.membershipStatus]);
-
   const fullName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Unnamed';
 
   const engagementBadge = useMemo(() => {
@@ -194,7 +188,14 @@ function MemberRow({ member, onSelect, selected, onToggle, isVisible, onInlineEd
       )}
       {isVisible('status') && (
         <td className="px-4 py-3 whitespace-nowrap">
-          {statusBadge}
+          <InlineEdit
+            value={member.membershipStatus}
+            onSave={async (val) => {
+              await onInlineEdit?.(member.id, 'membershipStatus', val);
+            }}
+            type="select"
+            options={INLINE_STATUS_OPTIONS}
+          />
         </td>
       )}
       {isVisible('level') && (
@@ -267,20 +268,16 @@ export function MemberList({
   const [siteId, setSiteId] = useState<string | null>(initialSiteId || null);
   const [status, setStatus] = useState<MembershipStatus | ''>('');
 
-  // Pagination
-  const [page, setPage] = useState(0);
-
   // Debounced search
-  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  const debouncedSearch = useDebounce(searchTerm, 300);
 
-  useMemo(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(0);
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  // Pagination — reset to page 0 when search term changes
+  const [page, setPage] = useState(0);
+  const [prevSearch, setPrevSearch] = useState(debouncedSearch);
+  if (prevSearch !== debouncedSearch) {
+    setPrevSearch(debouncedSearch);
+    setPage(0);
+  }
 
   // Fetch members via React Query
   const { data, isLoading, error, refetch } = useSearchMembers({
